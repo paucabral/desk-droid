@@ -23,5 +23,5 @@ Parts list directory (as imported in this repository):
     - [💾 Direct Download]() -->
 
 ### Usage
-1. Import the parts inside the `fritzing/parts` library in a new bin.
+1. Import the parts inside the [parts/](parts/) library in a new bin.
 2. Open the `desk-droid.fzz` project.
