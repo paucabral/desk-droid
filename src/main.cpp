@@ -15,6 +15,9 @@
 // BUZZER VARS
 #define BUZZER_PIN         11
 
+// TOUCH SENSOR VARS
+#define TOUCH_PIN          10
+
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
 
 #include <FluxGarage_RoboEyes.h>
@@ -34,10 +37,17 @@ void setup()   {
 
   cute.init(BUZZER_PIN);
   cute.play(S_CONNECTION);
+
+  pinMode(TOUCH_PIN, INPUT_PULLDOWN); // for troubleshooting
 }
 
 
 void loop() {
  roboEyes.update(); // update eyes drawings
- //cute.play(S_MODE1);
+ 
+ int touchState = digitalRead(TOUCH_PIN);
+ if (touchState == HIGH) {
+    Serial.println(touchState);
+    cute.play(S_MODE1);
+ }
 }
