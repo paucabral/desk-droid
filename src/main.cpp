@@ -23,6 +23,11 @@ Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGH
 #include <FluxGarage_RoboEyes.h>
 RoboEyes<Adafruit_SH1106G> roboEyes(display); // create RoboEyes instance
 
+
+// EVENT TIMER
+unsigned long eventTimer; // will save the timestamps
+
+
 void setup()   {
   Serial.begin(115200);
 
@@ -30,24 +35,37 @@ void setup()   {
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(i2c_Address, true);
 
-  roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100);
-
+  roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
   roboEyes.setAutoblinker(ON, 3, 2);
   roboEyes.setIdleMode(ON, 2, 2);
 
   cute.init(BUZZER_PIN);
   cute.play(S_CONNECTION);
 
-  pinMode(TOUCH_PIN, INPUT_PULLDOWN); // for troubleshooting
+  pinMode(TOUCH_PIN, INPUT); // for troubleshooting
+
+  // Event Timer
+  eventTimer = millis();
 }
 
 
 void loop() {
- roboEyes.update(); // update eyes drawings
- 
- int touchState = digitalRead(TOUCH_PIN);
- if (touchState == HIGH) {
-    Serial.println(touchState);
-    cute.play(S_MODE1);
- }
+  roboEyes.update(); // update eyes drawings
+  
+  if(millis() >= eventTimer+1000){
+    int touchState = digitalRead(TOUCH_PIN);
+      if (touchState == HIGH) {
+        Serial.println(touchState);
+        roboEyes.setMood(HAPPY);
+        roboEyes.anim_laugh();
+        cute.play(S_HAPPY);
+      }
+  }
+
+  // Do once after defined number of milliseconds, then reset timer and flags to restart the whole animation sequence
+  if(millis() >= eventTimer+3500){
+    roboEyes.setMood(DEFAULT);
+    // Reset the timer and the event flags to restart the whole "complex animation loop"
+    eventTimer = millis(); // reset timer
+  }
 }
