@@ -1,3 +1,5 @@
+# Libraries
+
 
 This directory is intended for project specific (private) libraries.
 PlatformIO will compile them to static libraries and link into the executable file.
@@ -44,3 +46,7 @@ libraries by scanning project source files.
 
 More information about PlatformIO Library Dependency Finder
 - https://docs.platformio.org/page/librarymanager/ldf.html
+
+### Imported Libraries
+- [RoboEyes](https://github.com/FluxGarage/RoboEyes)
+- [CuteBuzzerSounds](https://github.com/evertonramires/CuteBuzzerSounds/)
