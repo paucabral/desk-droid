@@ -8,6 +8,7 @@ The source code of each library should be placed in a separate directory
 
 For example, see the structure of the following example libraries `Foo` and `Bar`:
 
+```
 |--lib
 |  |
 |  |--Bar
@@ -27,6 +28,7 @@ For example, see the structure of the following example libraries `Foo` and `Bar
 |- platformio.ini
 |--src
    |- main.c
+```
 
 Example contents of `src/main.c` using Foo and Bar:
 ```
