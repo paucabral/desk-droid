@@ -48,10 +48,10 @@ More information about PlatformIO Library Dependency Finder
 
 ### Manually Imported Libraries
 List of manually imported libraries:
-- [RoboEyes](https://github.com/FluxGarage/RoboEyes)
-- [CuteBuzzerSounds](https://github.com/evertonramires/CuteBuzzerSounds/)
+- [RoboEyes (v1.1.1)](https://github.com/FluxGarage/RoboEyes)
+- [CuteBuzzerSounds (v1.0.0)](https://github.com/evertonramires/CuteBuzzerSounds/)
 
 ### PlatformIO Imported Libraries
 PlatformIO import library dependencies:
-- [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library)
-- [Adafruit_SH110x](https://github.com/adafruit/Adafruit_SH110x)
+- [Adafruit-GFX-Library (v1.12.4)](https://github.com/adafruit/Adafruit-GFX-Library)
+- [Adafruit_SH110x (v2.1.14)](https://github.com/adafruit/Adafruit_SH110x)
