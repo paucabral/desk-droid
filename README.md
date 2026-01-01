@@ -13,7 +13,7 @@
 - **Microcontroller**: ESP32-S3 SuperMini
 
 - **Sensors**:
-    <!-- - TEMT600 (Light Sensor) -->
+    - TEMT600 (Light Sensor)
     <!-- - MAX 9814 (Sound Sensor) -->
     <!-- - MQ135 (Air Quality Sensor) -->
     - DHT11 (Temperature and Humidity Sensor)
