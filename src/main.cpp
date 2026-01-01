@@ -23,6 +23,10 @@
 #define DHTPIN             9 // for further testing
 #define DHTTYPE            DHT11 
 
+// LIGHT SENSOR VARS
+#define LDR_PIN            8
+#define LDR_THRESHOLD      1000 // Tune according to preference
+
 // OBJECTS
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -50,7 +54,8 @@ void setup()   {
   cute.init(BUZZER_PIN);
   cute.play(S_CONNECTION);
 
-  pinMode(TOUCH_PIN, INPUT); // for troubleshooting
+  pinMode(TOUCH_PIN, INPUT);
+  pinMode(LDR_PIN, INPUT);
 
   // Event Timer
   event_timer = millis();
@@ -62,16 +67,31 @@ void loop() {
   
   if(millis() >= event_timer+1000){
     int touchState = digitalRead(TOUCH_PIN);
-      if (touchState == HIGH) {
-        Serial.println(touchState);
-        roboEyes.setMood(HAPPY);
-        roboEyes.anim_laugh();
-        cute.play(S_HAPPY);
-      }
+    if (touchState == HIGH) {
+      Serial.println(touchState);
+      roboEyes.setMood(HAPPY);
+      roboEyes.anim_laugh();
+      cute.play(S_HAPPY);
+    }
+
+    // Light level reading
+    int lightLevel = analogRead(LDR_PIN);
+    Serial.print(F("Light level: "));
+    Serial.println(lightLevel);
+
+    if (lightLevel < LDR_THRESHOLD) {
+      roboEyes.close();
+    }
+    else {
+      roboEyes.open();
+      // roboEyes.setMood(DEFAULT);
+      // roboEyes.setPosition(DEFAULT); // eye position: middle center
+    }
   }
 
-  // Measure temperature every 3.5 seconds
+  // Measure sensor data every 3.5 seconds
   if(millis() >= event_timer+3500){
+
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float humidty = dht.readHumidity();
