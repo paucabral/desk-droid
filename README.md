@@ -16,7 +16,7 @@
     <!-- - TEMT600 (Light Sensor) -->
     <!-- - MAX 9814 (Sound Sensor) -->
     <!-- - MQ135 (Air Quality Sensor) -->
-    <!-- - DHT11 (Temperature and Humidity Sensor) -->
+    - DHT11 (Temperature and Humidity Sensor)
     <!-- - SR501 (Motion Sensor) -->
     <!-- - ADXL345 (Accelerometer) -->
     - TTP223 (Capacitive Touch Sensor)

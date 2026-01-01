@@ -16,6 +16,9 @@ Parts list directory (as imported in this repository):
 - **Capacitive Touch Sensor**
     - [💬 Forum Link](https://forum.fritzing.org/t/ttp223b-module-alternative-design/11139/2)
     - [💾 Direct Download](https://forum.fritzing.org/uploads/short-url/6EryNAQ6wU4tDFa4MLlj1lODkUe.fzpz)
+- **Temperature and Humidity Sensor**
+    - [💬 Forum Link](https://arduinomodules.info/download/ky-015-temperature-humidity-sensor-module-zip-file/)
+    - [💾 Direct Download](https://arduinomodules.info/download/ky-015-temperature-humidity-sensor-module-zip-file/#unlock)
 
 <!-- Template -->
 <!-- **Part**
