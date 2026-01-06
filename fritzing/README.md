@@ -22,6 +22,9 @@ Parts list directory (as imported in this repository):
 - **TEMT6000 Light Sensor**
     - [💬 Forum Link](https://forum.fritzing.org/t/temt6000-brick-download/20406/2)
     - [💾 Direct Download](https://forum.fritzing.org/uploads/short-url/kp9lpQa11v5nO44Q2Xz5W5kLW1z.fzpz)
+- **MQ-135 Air Quality Sensor**
+    - [💬 Forum Link](https://forum.fritzing.org/t/mq-135-gas-sensor-breakout-board/26152)
+    - [💾 Direct Download](https://forum.fritzing.org/uploads/short-url/6SuZ75KSibpSUzOyTHRWeNgN6u2.fzpz)
 
 
 <!-- Template -->

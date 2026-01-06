@@ -27,6 +27,10 @@
 #define LDR_PIN            8
 #define LDR_THRESHOLD      1000 // Tune according to preference
 
+// AIR QUALITY SENSOR VARS
+#define AQI_PIN            7
+#define AQI_THRESHOLD      1800 // Tune according to preference
+
 // OBJECTS
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -56,6 +60,7 @@ void setup()   {
 
   pinMode(TOUCH_PIN, INPUT);
   pinMode(LDR_PIN, INPUT);
+  pinMode(AQI_PIN, INPUT);
 
   // Event Timer
   event_timer = millis();
@@ -64,6 +69,8 @@ void setup()   {
 
 void loop() {
   roboEyes.update(); // update eyes drawings
+
+  int aqiValue = analogRead(AQI_PIN);
   
   if(millis() >= event_timer+1000){
     int touchState = digitalRead(TOUCH_PIN);
@@ -72,6 +79,16 @@ void loop() {
       roboEyes.setMood(HAPPY);
       roboEyes.anim_laugh();
       cute.play(S_HAPPY);
+    }
+
+    int aqiValue = analogRead(AQI_PIN);
+    Serial.print(F("Air Quality Index: "));
+    Serial.println(aqiValue);
+    if (aqiValue > AQI_THRESHOLD) {
+      // Poor air quality detected
+      roboEyes.setMood(ANGRY);
+      roboEyes.setHFlicker(ON, 5);
+      cute.play(S_FART1);
     }
 
     // Light level reading
