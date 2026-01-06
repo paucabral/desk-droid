@@ -13,13 +13,13 @@
 - **Microcontroller**: ESP32-S3 SuperMini
 
 - **Sensors**:
-    - TEMT600 (Light Sensor) - **!Adjust threshold**
+    - TEMT600 (Light Sensor) - **!Adjust threshold!**
     <!-- - MAX 9814 (Sound Sensor) -->
-    <!-- - MQ135 (Air Quality Sensor) -->
+    - MQ135 (Air Quality Sensor) - **!Adjust threshold!**
     - DHT11 (Temperature and Humidity Sensor) - **!STILL FOR FIXING!**
     <!-- - SR501 (Motion Sensor) -->
     <!-- - ADXL345 (Accelerometer) -->
-    - TTP223 (Capacitive Touch Sensor) - **Add variations to animations based on light conditions**
+    - TTP223 (Capacitive Touch Sensor)
 
 - **Actuators**:
     - OLED Display 1.3" 128x64
