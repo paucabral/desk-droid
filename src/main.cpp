@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_ADXL345_U.h>
 #include <CuteBuzzerSounds.h>
 
 // OLED VARS
@@ -23,9 +25,6 @@
 #define LDR_THRESHOLD      300 // Tune according to preference
 
 // ACCELEROMETER VARS
-#define ACCEL_I2C_ADDRESS  0x53
-#define ACCEL_POWER_CTL    0x2D
-#define ACCEL_DATAX0       0x32
 #define ACCEL_SCL          7
 #define ACCEL_SDA          6
 float X_out, Y_out, Z_out;
@@ -33,6 +32,8 @@ float X_out, Y_out, Z_out;
 
 // OBJECTS
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
+
+Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
 #include <FluxGarage_RoboEyes.h>
 RoboEyes<Adafruit_SH1106G> roboEyes(display); // create RoboEyes instance
@@ -47,14 +48,12 @@ void setup()   {
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
 
-  delay(250);
   Wire.begin(ACCEL_SDA, ACCEL_SCL);
-  Wire.beginTransmission(ACCEL_I2C_ADDRESS);
-  Wire.write(ACCEL_POWER_CTL); // Access/ talk to POWER_CTL Register - 0x2D
-  // Enable measurement
-  Wire.write(8); // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable 
-  Wire.endTransmission();
-  delay(10);
+  if(!accel.begin()) {
+    Serial.println("Ooops, no ADXL345 detected ... Check your wiring!");
+    while(1);
+  }
+  accel.setRange(ADXL345_RANGE_4_G);
 
   roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
   roboEyes.setAutoblinker(ON, 3, 2);
@@ -75,16 +74,14 @@ void loop() {
   roboEyes.update(); // update eyes drawings
 
 
-  Wire.beginTransmission(ACCEL_I2C_ADDRESS);
-  Wire.write(ACCEL_DATAX0); // Access/ talk to POWER_CTL Register - 0x2D
-  Wire.endTransmission(false);
-  Wire.requestFrom(ACCEL_I2C_ADDRESS, 6);
-  X_out = (Wire.read() | Wire.read() << 8) / 256;
-  Y_out = (Wire.read() | Wire.read() << 8) / 256;
-  Z_out = (Wire.read() | Wire.read() << 8) / 256;
-  Serial.print("Xa= "); Serial.print(X_out);
-  Serial.print(" Ya= "); Serial.print(Y_out);
-  Serial.print(" Za= "); Serial.println(Z_out);
+  sensors_event_t event; 
+  accel.getEvent(&event);
+
+  /* Display the results (acceleration is measured in m/s^2) */
+  Serial.print("X: "); Serial.print(event.acceleration.x); Serial.print("  ");
+  Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
+  Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");
+  Serial.println("m/s^2");
 
   if(millis() >= event_timer+1000){
     int touchState = digitalRead(TOUCH_PIN);
