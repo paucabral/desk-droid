@@ -3,7 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 #include <CuteBuzzerSounds.h>
-#include "DHT.h"
 
 // OLED VARS
 #define i2c_Address        0x3c
@@ -21,7 +20,7 @@
 
 // LIGHT SENSOR VARS
 #define LDR_PIN            8
-#define LDR_THRESHOLD      1000 // Tune according to preference
+#define LDR_THRESHOLD      300 // Tune according to preference
 
 
 // OBJECTS
@@ -79,6 +78,14 @@ void loop() {
       roboEyes.open();
       // roboEyes.setMood(DEFAULT);
       // roboEyes.setPosition(DEFAULT); // eye position: middle center
+    }
+
+    // Do once after defined number of milliseconds, then reset timer and flags to restart the whole animation sequence
+    if(millis() >= event_timer+5000){
+      roboEyes.close(); // close eyes again
+      roboEyes.setMood(DEFAULT);
+      // Reset the timer and the event flags to restart the whole "complex animation loop"
+      event_timer = millis(); // reset timer
     }
   }
 }
