@@ -95,12 +95,14 @@ void loop() {
       Serial.println(touchState);
       roboEyes.setMood(HAPPY);
       roboEyes.anim_laugh();
-      cute.play(S_HAPPY);
+      cute.play(S_SUPER_HAPPY);
     }
 
     // Shake reading
     if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
-      Serial.println("👋 Shake detected!");
+      roboEyes.setMood(TIRED);
+      roboEyes.anim_confused();
+      cute.play(S_SURPRISE);
     }
 
     last_x = event.acceleration.x;
@@ -115,11 +117,10 @@ void loop() {
     if (lightLevel < LDR_THRESHOLD) {
       roboEyes.close();
       roboEyes.setPosition(S);
+      // cute.play(S_SLEEPING);
     }
     else {
       roboEyes.open();
-      // roboEyes.setMood(DEFAULT);
-      // roboEyes.setPosition(DEFAULT); // eye position: middle center
     }
 
     // Do once after defined number of milliseconds, then reset timer and flags to restart the whole animation sequence
