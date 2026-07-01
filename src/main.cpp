@@ -27,7 +27,8 @@
 // ACCELEROMETER VARS
 #define ACCEL_SCL          7
 #define ACCEL_SDA          6
-float X_out, Y_out, Z_out;
+#define SHAKE_THRESHOLD    8.0
+float last_x = 0, last_y = 0, last_z = 0;
 
 
 // OBJECTS
@@ -77,13 +78,18 @@ void loop() {
   sensors_event_t event; 
   accel.getEvent(&event);
 
+  float delta_x = abs(event.acceleration.x - last_x);
+  float delta_y = abs(event.acceleration.y - last_y);
+  float delta_z = abs(event.acceleration.z - last_z);
+
   /* Display the results (acceleration is measured in m/s^2) */
-  Serial.print("X: "); Serial.print(event.acceleration.x); Serial.print("  ");
-  Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
-  Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");
+  Serial.print("X: "); Serial.print(delta_x); Serial.print("  ");
+  Serial.print("Y: "); Serial.print(delta_y); Serial.print("  ");
+  Serial.print("Z: "); Serial.print(delta_z); Serial.print("  ");
   Serial.println("m/s^2");
 
   if(millis() >= event_timer+1000){
+    // Touch reading
     int touchState = digitalRead(TOUCH_PIN);
     if (touchState == HIGH) {
       Serial.println(touchState);
@@ -91,6 +97,15 @@ void loop() {
       roboEyes.anim_laugh();
       cute.play(S_HAPPY);
     }
+
+    // Shake reading
+    if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
+      Serial.println("👋 Shake detected!");
+    }
+
+    last_x = event.acceleration.x;
+    last_y = event.acceleration.y;
+    last_z = event.acceleration.z;
 
     // Light level reading
     int lightLevel = analogRead(LDR_PIN);
