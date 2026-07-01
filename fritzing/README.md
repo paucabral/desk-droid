@@ -25,6 +25,9 @@ Parts list directory (as imported in this repository):
 - **MQ-135 Air Quality Sensor**
     - [💬 Forum Link](https://forum.fritzing.org/t/mq-135-gas-sensor-breakout-board/26152)
     - [💾 Direct Download](https://forum.fritzing.org/uploads/short-url/6SuZ75KSibpSUzOyTHRWeNgN6u2.fzpz)
+**ADXL345 Accelerometer**
+    - [💬 Forum Link](https://github.com/adafruit/Fritzing-Library/blob/master/parts/Adafruit%20ADXL345.fzpz)
+    - [💾 Direct Download](blob:https://github.com/917bed7e-a063-43b2-9dba-4fa6b69fdde6)
 
 
 <!-- Template -->
