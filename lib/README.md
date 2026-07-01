@@ -57,4 +57,6 @@ List of manually imported libraries:
 PlatformIO import library dependencies:
 - [Adafruit-GFX-Library (v1.12.4)](https://github.com/adafruit/Adafruit-GFX-Library)
 - [Adafruit_SH110x (v2.1.14)](https://github.com/adafruit/Adafruit_SH110x)
+- [Adafruit Unified Sensor (v1.1.15)](https://github.com/adafruit/adafruit_sensor)
+- [Adafruit ADXL345 (v1.3.4)](https://github.com/adafruit/Adafruit_ADXL345)
 - ~~[DHT-sensor-library (v.1.4.6)](https://github.com/adafruit/DHT-sensor-library)~~
