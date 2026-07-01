@@ -43,6 +43,7 @@ RoboEyes<Adafruit_SH1106G> roboEyes(display); // create RoboEyes instance
 unsigned long event_timer; // will save the timestamps
 
 
+// Helper function to render a unified, single-page checklist
 void drawChecklist(const char* accel, const char* touch, const char* light, const char* audio, const char* sysMsg) {
   display.clearDisplay();
   display.setTextSize(1);
@@ -53,7 +54,7 @@ void drawChecklist(const char* accel, const char* touch, const char* light, cons
   display.println(F("=== SYSTEMS CHECK ==="));
   display.println(F("---------------------"));
   
-  // Checklist Items (Max ~21 chars per line for 128 width)
+  // Checklist Items
   display.print(F("[")); display.print(accel); display.println(F("]     ACCELEROMETER"));
   display.print(F("[")); display.print(touch); display.println(F("]      TOUCH SENSOR"));
   display.print(F("[")); display.print(light); display.println(F("]      LIGHT SENSOR"));
@@ -66,6 +67,42 @@ void drawChecklist(const char* accel, const char* touch, const char* light, cons
   display.display();
 }
 
+// Helper function to draw the custom RoboEyes-style Desk-Droid Splash Badge
+void drawSplashArt() {
+  display.clearDisplay();
+  display.setTextColor(SH110X_WHITE);
+
+  // Outer Tech-Frame Brackets
+  display.drawRect(0, 0, 128, 64, SH110X_WHITE);      // Outer boundary box
+  display.fillRect(0, 12, 2, 40, SH110X_BLACK);       // Break side lines for sci-fi look
+  display.fillRect(126, 12, 2, 40, SH110X_BLACK);
+  
+  // --- Left Side: RoboEyes Face Style ---
+  // Face Outer Outline (Rounded rectangle, black interior)
+  display.drawRoundRect(15, 18, 32, 28, 6, SH110X_WHITE); 
+  
+  // Big, perfectly proportioned solid white square eyes (No pupils)
+  display.fillRect(19, 27, 10, 10, SH110X_WHITE);       
+  display.fillRect(33, 27, 10, 10, SH110X_WHITE);
+
+  // Vertical Separator UI Line
+  display.drawFastVLine(55, 8, 48, SH110X_WHITE);
+
+  // --- Right Side: Text & Typography ---
+  display.setTextSize(1);
+  display.setCursor(63, 14);
+  display.print(F("DESK"));
+  
+  display.setTextSize(2); 
+  display.setCursor(63, 25);
+  display.print(F("DROID"));
+  
+  display.setTextSize(1);
+  display.setCursor(63, 44);
+  display.print(F("v1.0 READY"));
+
+  display.display();
+}
 
 void setup()   {
   Serial.begin(115200);
@@ -86,26 +123,39 @@ void setup()   {
     while(1); // Halt system on error
   }
   accel.setRange(ADXL345_RANGE_4_G);
-  drawChecklist("*", " ", " ", " ", "TESTING...");
-  delay(400);
+  drawChecklist("*", " ", " ", " ", "   TESTING...");
+  delay(500);
 
   // Phase 3: Check Touch Sensor
   pinMode(TOUCH_PIN, INPUT);
-  drawChecklist("*", "*", " ", " ", "TESTING...");
-  delay(400);
+  drawChecklist("*", "*", " ", " ", "   TESTING...");
+  delay(500);
 
   // Phase 4: Check Light Sensor
   pinMode(LDR_PIN, INPUT);
-  drawChecklist("*", "*", "*", " ", "TESTING...");
-  delay(400);
+  drawChecklist("*", "*", "*", " ", "   TESTING...");
+  delay(500);
 
   // Phase 5: Check Audio Engine
   cute.init(BUZZER_PIN);
   drawChecklist("*", "*", "*", "*", "       READY!");
   
-  // Play startup sound while "READY!" is displayed
+  // Play short acknowledgment beep sequence
   cute.play(S_CONNECTION); 
-  delay(1000); 
+  delay(600); 
+
+  // Phase 5.5: Render Custom Splash Art
+  drawSplashArt();
+  delay(3000); // Keep badge on screen for appreciation
+
+  // Sci-Fi Screen Flicker Transition before waking up
+  for(int i = 0; i < 3; i++) {
+    display.clearDisplay(); display.display(); delay(40);
+    drawSplashArt(); delay(60);
+  }
+  
+  // Sound right as eyes appear
+  cute.play(S_HAPPY_SHORT);
 
   // Phase 6: Clear and Handover to RoboEyes
   roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
@@ -119,7 +169,6 @@ void setup()   {
 
 void loop() {
   roboEyes.update(); // update eyes drawings
-
 
   sensors_event_t event; 
   accel.getEvent(&event);
@@ -163,19 +212,16 @@ void loop() {
     if (lightLevel < LDR_THRESHOLD) {
       roboEyes.close();
       roboEyes.setPosition(S);
-      // cute.play(S_SLEEPING);
     }
     else {
       roboEyes.open();
     }
 
-    // Do once after defined number of milliseconds, then reset timer and flags to restart the whole animation sequence
+    // Reset loop
     if(millis() >= event_timer+5000){
       roboEyes.setMood(DEFAULT);
-      roboEyes.setPosition(DEFAULT); // eye position: middle center
-      
-      // Reset the timer and the event flags to restart the whole "complex animation loop"
-      event_timer = millis(); // reset timer
+      roboEyes.setPosition(DEFAULT); 
+      event_timer = millis(); 
     }
   }
 }
