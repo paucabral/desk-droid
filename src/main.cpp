@@ -84,7 +84,7 @@ void loop() {
     // Do once after defined number of milliseconds, then reset timer and flags to restart the whole animation sequence
     if(millis() >= event_timer+5000){
       roboEyes.setMood(DEFAULT);
-      roboEyes.setPosition(DEFAULT); // eye position: middle center\
+      roboEyes.setPosition(DEFAULT); // eye position: middle center
       
       // Reset the timer and the event flags to restart the whole "complex animation loop"
       event_timer = millis(); // reset timer
