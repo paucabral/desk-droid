@@ -15,8 +15,8 @@
 - **Sensors**:
     - TEMT600 (Light Sensor) - **!Adjust threshold!**
     <!-- - MAX 9814 (Sound Sensor) -->
-    - MQ135 (Air Quality Sensor) - **!Adjust threshold!**
-    - DHT11 (Temperature and Humidity Sensor) - **!STILL FOR FIXING!**
+    - ~~MQ135 (Air Quality Sensor)~~
+    - ~~DHT11 (Temperature and Humidity Sensor)~~
     <!-- - SR501 (Motion Sensor) -->
     <!-- - ADXL345 (Accelerometer) -->
     - TTP223 (Capacitive Touch Sensor)
