@@ -173,7 +173,7 @@ void loop() {
     lastDebounceTime = millis();
   }
 
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY_MS) {
+  if ((millis() - lastDebounceTime) >= DEBOUNCE_DELAY_MS) {
     if (rawTouchReading != debouncedTouchState) {
       debouncedTouchState = rawTouchReading;
 

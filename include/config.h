@@ -44,6 +44,6 @@
 // EVENT TRIGGERTS
 #define TRIGGER_DASHBOARD_MS     2000
 #define TRIGGER_EMOTE_HAPPY_TAPS 1
-#define TRIGGER_EMOTE_ANGRY_TAPS 3
-#define DEBOUNCE_DELAY_MS        20    // Lowered to 20ms to catch fast capacitive lifts
+#define TRIGGER_EMOTE_ANGRY_TAPS 2
+#define DEBOUNCE_DELAY_MS        5    // Lowered to 20ms to catch fast capacitive lifts
 #define TAP_GAP_TIMEOUT_MS       350   // Pacing window allowed between consecutive taps
