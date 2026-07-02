@@ -75,7 +75,7 @@ void setup() {
   }
   cute.play(S_HAPPY_SHORT);
 
-  // 7. Transition Control to RoboEyes Engine
+  // Transition Control to RoboEyes Engine
   roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
   roboEyes.setAutoblinker(ON, 3, 2);
   roboEyes.setIdleMode(ON, 2, 2);
