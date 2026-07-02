@@ -6,6 +6,13 @@
 #include <Adafruit_ADXL345_U.h>
 #include <CuteBuzzerSounds.h>
 
+// Motor Variables
+#define MOTOR_IB1 2
+#define MOTOR_IA1 3
+#define MOTOR_IB2 4
+#define MOTOR_IA2 5
+
+
 // Modular includes from the include/ folder
 #include "config.h"
 #include "display_ui.h"
@@ -22,6 +29,13 @@ unsigned long event_timer;
 float last_x = 0, last_y = 0, last_z = 0;
 
 void setup() {
+  // Motor Setup
+  pinMode(MOTOR_IB1, OUTPUT);
+  pinMode(MOTOR_IA1, OUTPUT);
+  pinMode(MOTOR_IB2, OUTPUT);
+  pinMode(MOTOR_IA2, OUTPUT);
+  
+
   Serial.begin(115200);
   delay(250);
 
@@ -82,6 +96,11 @@ void setup() {
 void loop() {
   roboEyes.update(); // Update screen drawings continuously
 
+  // digitalWrite(MOTOR_IA1, HIGH);
+  // digitalWrite(MOTOR_IB1, LOW);
+  // digitalWrite(MOTOR_IA2, HIGH);
+  // digitalWrite(MOTOR_IB2, LOW);
+
   // --- Real-time Accelerometer Sampling ---
   sensors_event_t event; 
   accel.getEvent(&event);
@@ -89,6 +108,10 @@ void loop() {
   float delta_x = abs(event.acceleration.x - last_x);
   float delta_y = abs(event.acceleration.y - last_y);
   float delta_z = abs(event.acceleration.z - last_z);
+
+  Serial.print("X: "); Serial.print(delta_x);
+  Serial.print(" Y: "); Serial.print(delta_y);
+  Serial.print(" Z: "); Serial.println(delta_z);
 
   last_x = event.acceleration.x;
   last_y = event.acceleration.y;
@@ -113,6 +136,7 @@ void loop() {
 
     // Check Ambient Light levels
     int lightLevel = analogRead(LDR_PIN);
+    Serial.print("Light Level: "); Serial.println(lightLevel);
     if (lightLevel < LDR_THRESHOLD) {
       roboEyes.close();
       roboEyes.setPosition(S);
