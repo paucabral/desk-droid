@@ -58,3 +58,25 @@ void drawSplashArt() {
 
   display.display();
 }
+
+void drawWifiScreen(const char* status, const char* ipAddress) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+
+  // Header Layout
+  display.setCursor(0, 0);
+  display.println(F("=== NETWORK CHECK ==="));
+  display.println(F("---------------------"));
+  
+  // Network Information Display
+  display.print(F("SSID:  ")); display.println(WIFI_SSID);
+  display.println(F("CONNECTING..."));
+  display.println(F("---------------------"));
+  
+  // Status Outputs
+  display.print(F("STATUS: ")); display.println(status);
+  display.print(F("IP:     ")); display.println(ipAddress);
+
+  display.display();
+}

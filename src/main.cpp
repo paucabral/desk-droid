@@ -5,6 +5,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 #include <CuteBuzzerSounds.h>
+#include <WiFi.h> // Native ESP32 WiFi library
 
 // Modular includes from the include/ folder
 #include "config.h"
@@ -36,7 +37,7 @@ void setup() {
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
 
-  // Splash Checklist Phase 1: Everything empty
+  // Splash Checklist Phase 1
   drawChecklist(" ", " ", " ", " ", " ", "INITIALIZING...");
   delay(800); 
 
@@ -69,10 +70,37 @@ void setup() {
   // 6. Initialize Motors
   initMotors();
   drawChecklist("*", "*", "*", "*", "*", "       READY!");
-  
-  // Play startup tone sequence once checklist items are complete
   cute.play(S_CONNECTION); 
-  delay(600); 
+  delay(1000); // Give user a moment to see Part 1 pass completely
+
+  // --- NEW: PART 2 - WIFI NETWORK INITIALIZATION GATE ---
+  drawWifiScreen("SEARCHING...", "0.0.0.0");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
+  unsigned long wifi_start_time = millis();
+  bool wifi_connected = false;
+
+  // Graceful Timeout Loop: Check connection status without locking up permanently
+  while (millis() - wifi_start_time < WIFI_TIMEOUT_MS) {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifi_connected = true;
+      break;
+    }
+    delay(100); // Maintain background processor stability
+  }
+
+  if (wifi_connected) {
+    // If successfully connected
+    drawWifiScreen("ONLINE [OK]", WiFi.localIP().toString().c_str());
+    Serial.print(F("WiFi Connected successfully. Assigned IP: "));
+    Serial.println(WiFi.localIP());
+  } else {
+    // If connection failed or timed out, disconnect modem gracefully to conserve power
+    WiFi.disconnect(true); 
+    drawWifiScreen("OFFLINE MODE", "N/A");
+    Serial.println(F("WiFi connection failed or timed out. Proceeding in offline mode..."));
+  }
+  delay(2000); // Hold network diagnostic info on screen before drawing the splash badge
 
   // 7. Display RoboEyes Custom Splash Card
   drawSplashArt();
@@ -171,11 +199,11 @@ void loop() {
         DroidMovement chosenMove = options[random(0, 4)];
         
         moveDroid(chosenMove);
-        motor_stop_time = millis() + random(150, 300); 
+        motor_stop_time = millis() + random(MOTOR_MOVE_DURATION_MIN, MOTOR_MOVE_DURATION_MAX); 
         motor_running = true;
       }
     }
 
-    next_idle_interval = random(4000, 10000); 
+    next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   }
 }
