@@ -33,7 +33,7 @@
 #define MOTOR_MOVE_INTERVAL_MIN 5000  // Minimum Interval between motor movements (in milliseconds)
 #define MOTOR_MOVE_INTERVAL_MAX 10000  // Maximum Interval between motor movements (in milliseconds)
 
-// INTERIM WIFI CONFIGURATION --> Target to transition from hardcoded credentials to user based inputs at a later release.
-#define WIFI_SSID       "YOUR_SSID_HERE"
-#define WIFI_PASSWORD   "YOUR_PASSWORD_HERE"
-#define WIFI_TIMEOUT_MS 5000  // Maximum milliseconds to try connecting before bypassing
+// WIFI PORTAL CONFIGURATION
+#define WIFI_AP_NAME             "Desk-Droid-Setup"
+#define WIFI_CONNECT_TIMEOUT_SEC 10  // Seconds to try connecting to saved home Wi-Fi
+#define WIFI_PORTAL_TIMEOUT_SEC  60  // Seconds the hotspot stays active before skipping to offline mode

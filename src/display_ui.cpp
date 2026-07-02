@@ -59,24 +59,22 @@ void drawSplashArt() {
   display.display();
 }
 
-void drawWifiScreen(const char* status, const char* ipAddress) {
+void drawWifiScreen(const char* header, const char* status, const char* ipOrInstruction) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
 
   // Header Layout
   display.setCursor(0, 0);
-  display.println(F("=== NETWORK CHECK ==="));
+  display.print(F("=== ")); display.print(header); display.println(F(" ==="));
   display.println(F("---------------------"));
   
-  // Network Information Display
-  display.print(F("SSID:  ")); display.println(WIFI_SSID);
-  display.println(F("CONNECTING..."));
-  display.println(F("---------------------"));
-  
-  // Status Outputs
+  // Dynamic status details
   display.print(F("STATUS: ")); display.println(status);
-  display.print(F("IP:     ")); display.println(ipAddress);
+  display.println(F("---------------------"));
+  
+  // Detail message row
+  display.println(ipOrInstruction);
 
   display.display();
 }

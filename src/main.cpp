@@ -4,8 +4,11 @@
 #include <Adafruit_SH110X.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+
 #include <CuteBuzzerSounds.h>
-#include <WiFi.h> // Native ESP32 WiFi library
+#undef debug
+
+#include <WiFiManager.h> // Includes WiFi.h, WebServer.h, DNSServer.h, and Preferences.h internally
 
 // Modular includes from the include/ folder
 #include "config.h"
@@ -16,6 +19,7 @@
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
+#undef DEFAULT
 #include <FluxGarage_RoboEyes.h>
 RoboEyes<Adafruit_SH1106G> roboEyes(display); 
 
@@ -28,6 +32,17 @@ unsigned long motor_stop_time = 0; // Precision stopwatch for active movement du
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
+
+// Callback function triggered ONLY if saved Wi-Fi fails and the Captive Portal hotspot starts up
+void configModeCallback(WiFiManager *myWiFiManager) {
+  Serial.println(F("Entered Configuration Portal Mode!"));
+  Serial.print(F("AP IP Address: "));
+  Serial.println(WiFi.softAPIP());
+  
+  // Notify the user on the screen to connect their device to the droid
+  drawWifiScreen("PORTAL ACTIVE", "CONFIG MODE", "Connect your device\nto: Desk-Droid-Setup");
+  cute.play(S_MODE1); // Play a unique alert sound indicating the portal is waiting
+}
 
 void setup() {
   Serial.begin(115200);
@@ -71,36 +86,34 @@ void setup() {
   initMotors();
   drawChecklist("*", "*", "*", "*", "*", "       READY!");
   cute.play(S_CONNECTION); 
-  delay(1000); // Give user a moment to see Part 1 pass completely
+  delay(1000); 
 
-  // --- NEW: PART 2 - WIFI NETWORK INITIALIZATION GATE ---
-  drawWifiScreen("SEARCHING...", "0.0.0.0");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  // --- PART 2 - AUTOMATIC WIFI CAPTIVE PORTAL ENGINE ---
+  drawWifiScreen("NETWORK CHECK", "SEARCHING...", "Checking memory for\nsaved network connections");
   
-  unsigned long wifi_start_time = millis();
-  bool wifi_connected = false;
+  WiFiManager wm;
+  
+  // Set the callback function when entering config mode
+  wm.setAPCallback(configModeCallback);
+  
+  // Configure timeouts from config.h to prevent the droid from hanging indefinitely
+  wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SEC); 
+  wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_SEC);
 
-  // Graceful Timeout Loop: Check connection status without locking up permanently
-  while (millis() - wifi_start_time < WIFI_TIMEOUT_MS) {
-    if (WiFi.status() == WL_CONNECTED) {
-      wifi_connected = true;
-      break;
-    }
-    delay(100); // Maintain background processor stability
-  }
+  // Attempt auto-connection. If it fails, it spawns "Desk-Droid-Setup". 
+  // If that portal configuration window times out, it returns false.
+  bool wifi_success = wm.autoConnect(WIFI_AP_NAME);
 
-  if (wifi_connected) {
-    // If successfully connected
-    drawWifiScreen("ONLINE [OK]", WiFi.localIP().toString().c_str());
+  if (wifi_success) {
+    String ipMsg = "IP: " + WiFi.localIP().toString();
+    drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     Serial.print(F("WiFi Connected successfully. Assigned IP: "));
     Serial.println(WiFi.localIP());
   } else {
-    // If connection failed or timed out, disconnect modem gracefully to conserve power
-    WiFi.disconnect(true); 
-    drawWifiScreen("OFFLINE MODE", "N/A");
-    Serial.println(F("WiFi connection failed or timed out. Proceeding in offline mode..."));
+    drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
+    Serial.println(F("WiFi Portal timed out or failed. Proceeding to Offline Mode safely..."));
   }
-  delay(2000); // Hold network diagnostic info on screen before drawing the splash badge
+  delay(2500); // Allow diagnostic confirmation text to be read
 
   // 7. Display RoboEyes Custom Splash Card
   drawSplashArt();
@@ -121,7 +134,7 @@ void setup() {
   // Initialize Timers
   env_timer = millis();
   idle_timer = millis();
-  next_idle_interval = random(4000, 9000); 
+  next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   randomSeed(analogRead(LDR_PIN)); 
 }
 

@@ -60,3 +60,4 @@ PlatformIO import library dependencies:
 - [Adafruit Unified Sensor (v1.1.15)](https://github.com/adafruit/adafruit_sensor)
 - [Adafruit ADXL345 (v1.3.4)](https://github.com/adafruit/Adafruit_ADXL345)
 - ~~[DHT-sensor-library (v.1.4.6)](https://github.com/adafruit/DHT-sensor-library)~~
+- [WiFiManager (v2.0.17)](https://github.com/tzapu/wifimanager)
