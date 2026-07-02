@@ -6,7 +6,7 @@
 #include <Adafruit_ADXL345_U.h>
 
 #include <CuteBuzzerSounds.h>
-#undef debug
+#undef debug // Clears the macro collision before WiFiManager loads
 
 #include <WiFiManager.h> // Includes WiFi.h, WebServer.h, DNSServer.h, and Preferences.h internally
 
@@ -19,7 +19,7 @@
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
-#undef DEFAULT
+#undef DEFAULT // Wipes Arduino core's DEFAULT macro so RoboEyes can use its own
 #include <FluxGarage_RoboEyes.h>
 RoboEyes<Adafruit_SH1106G> roboEyes(display); 
 
@@ -29,19 +29,22 @@ unsigned long idle_timer;          // Tracks variable pacing for random movement
 unsigned long next_idle_interval;  // Dynamically changes to randomize rest duration
 unsigned long motor_stop_time = 0; // Precision stopwatch for active movement duration
 
+// Gesture & Page Management Timers
+unsigned long touch_start_time = 0;
+unsigned long weather_screen_timeout = 0;
+
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
+bool showing_weather = false;     // Controls screen visibility
+bool last_touch_state = false;    // Tracks touch transitions edge-triggers
 
-// Callback function triggered ONLY if saved Wi-Fi fails and the Captive Portal hotspot starts up
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
   Serial.print(F("AP IP Address: "));
   Serial.println(WiFi.softAPIP());
-  
-  // Notify the user on the screen to connect their device to the droid
   drawWifiScreen("PORTAL ACTIVE", "CONFIG MODE", "Connect your device\nto: Desk-Droid-Setup");
-  cute.play(S_MODE1); // Play a unique alert sound indicating the portal is waiting
+  cute.play(S_MODE1); 
 }
 
 void setup() {
@@ -92,16 +95,10 @@ void setup() {
   drawWifiScreen("NETWORK CHECK", "SEARCHING...", "Checking memory for\nsaved network connections");
   
   WiFiManager wm;
-  
-  // Set the callback function when entering config mode
   wm.setAPCallback(configModeCallback);
-  
-  // Configure timeouts from config.h to prevent the droid from hanging indefinitely
   wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SEC); 
   wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_SEC);
 
-  // Attempt auto-connection. If it fails, it spawns "Desk-Droid-Setup". 
-  // If that portal configuration window times out, it returns false.
   bool wifi_success = wm.autoConnect(WIFI_AP_NAME);
 
   if (wifi_success) {
@@ -113,7 +110,7 @@ void setup() {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
     Serial.println(F("WiFi Portal timed out or failed. Proceeding to Offline Mode safely..."));
   }
-  delay(2500); // Allow diagnostic confirmation text to be read
+  delay(2500); 
 
   // 7. Display RoboEyes Custom Splash Card
   drawSplashArt();
@@ -139,12 +136,52 @@ void setup() {
 }
 
 void loop() {
-  roboEyes.update(); // Update screen drawings continuously
+  // --- Dynamic Screen Page Router ---
+  if (!showing_weather) {
+    roboEyes.update(); // Update eye drawing frame updates when active
+  } else {
+    if (millis() >= weather_screen_timeout) {
+      showing_weather = false; // Page visibility expired, return to eyes
+      roboEyes.setMood(DEFAULT);
+      roboEyes.setPosition(DEFAULT);
+    } else {
+      // Render our mock screen using mock values for testing
+      drawWeatherScreen("PARTLY CLOUDY", 27, 62, 20);
+    }
+  }
 
   // --- Real-Time Motor Cutoff ---
   if (motor_running && millis() >= motor_stop_time) {
     moveDroid(STOP);
     motor_running = false;
+  }
+
+  // --- NEW: Real-Time High-Frequency Touch Gesture Processing ---
+  int touchState = digitalRead(TOUCH_PIN);
+  
+  if (touchState == HIGH && !last_touch_state) {
+    touch_start_time = millis(); // User just placed their finger down, start clock
+    last_touch_state = true;
+  } 
+  else if (touchState == LOW && last_touch_state) {
+    unsigned long press_duration = millis() - touch_start_time;
+    // If released before 1.5 seconds, process as a regular happy tap
+    if (press_duration < 1500 && press_duration > 50 && !showing_weather) {
+      roboEyes.setMood(HAPPY);
+      roboEyes.anim_laugh();
+      cute.play(S_SUPER_HAPPY);
+    }
+    last_touch_state = false;
+  }
+
+  // Evaluate if continuous hold crosses threshold while finger is still down
+  if (touchState == HIGH && last_touch_state && !showing_weather) {
+    if (millis() - touch_start_time >= 1500) {
+      showing_weather = true;
+      weather_screen_timeout = millis() + 6000; // Keep page active for 6000ms (6s)
+      cute.play(S_BUTTON_PUSHED);               // Notification chime indicating switch
+      last_touch_state = false;                  // Disarm trigger tracking until next down edge
+    }
   }
 
   // --- Real-time Accelerometer Sampling ---
@@ -164,8 +201,11 @@ void loop() {
   last_z = event.acceleration.z;
 
   if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
-    roboEyes.setMood(TIRED);
-    roboEyes.anim_confused();
+    // Only interrupt with shake expression if not showing data sheet
+    if (!showing_weather) {
+      roboEyes.setMood(TIRED);
+      roboEyes.anim_confused();
+    }
     cute.play(S_SURPRISE);
   }
 
@@ -173,27 +213,23 @@ void loop() {
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     
-    // Check Touch Sensor
-    int touchState = digitalRead(TOUCH_PIN);
-    if (touchState == HIGH) {
-      roboEyes.setMood(HAPPY);
-      roboEyes.anim_laugh();
-      cute.play(S_SUPER_HAPPY);
-    }
-
     // Check Ambient Light levels
     int lightLevel = analogRead(LDR_PIN);
     Serial.print("Light Level: "); Serial.println(lightLevel);
     
     if (lightLevel < LDR_THRESHOLD) {
-      roboEyes.close();
-      roboEyes.setPosition(S);
+      if (!showing_weather) {
+        roboEyes.close();
+        roboEyes.setPosition(S);
+      }
       if (motor_running) {
         moveDroid(STOP);
         motor_running = false;
       }
     } else {
-      roboEyes.open();
+      if (!showing_weather) {
+        roboEyes.open();
+      }
     }
   }
 
@@ -201,11 +237,14 @@ void loop() {
   if (millis() - idle_timer >= next_idle_interval) {
     idle_timer = millis(); 
     
-    roboEyes.setMood(DEFAULT);
-    roboEyes.setPosition(DEFAULT); 
+    // Only clear expressions if we aren't displaying data details
+    if (!showing_weather) {
+      roboEyes.setMood(DEFAULT);
+      roboEyes.setPosition(DEFAULT); 
+    }
 
     int currentLight = analogRead(LDR_PIN);
-    if (currentLight >= LDR_THRESHOLD) {
+    if (currentLight >= LDR_THRESHOLD && !showing_weather) {
       
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};

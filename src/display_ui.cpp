@@ -78,3 +78,25 @@ void drawWifiScreen(const char* header, const char* status, const char* ipOrInst
 
   display.display();
 }
+
+void drawWeatherScreen(const char* condition, int temp, int humidity, int rainChance) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+
+  // Header Layout
+  display.setCursor(0, 0);
+  display.println(F("=== WEATHER REPORT ==="));
+  display.println(F("---------------------"));
+  
+  // Weather Info Rows
+  display.print(F("STATUS: ")); display.println(condition);
+  display.print(F("TEMP:   ")); display.print(temp); display.println(F(" C"));
+  display.print(F("HUMID:  ")); display.print(humidity); display.println(F("%"));
+  display.print(F("RAIN %: ")); display.print(rainChance); display.println(F("%"));
+  
+  display.println(F("---------------------"));
+  display.print(F("MODE:   SYS ACTIVE"));
+
+  display.display();
+}
