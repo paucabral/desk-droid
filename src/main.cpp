@@ -33,10 +33,6 @@ unsigned long motor_stop_time = 0; // Precision stopwatch for active movement du
 unsigned long touch_start_time = 0;
 unsigned long dashboard_timeout = 0; // Tracks visibility length via config macro
 
-// Multi-Tap Gesture Tracking Variables
-unsigned long last_release_time = 0;
-int tap_count = 0;
-
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
@@ -52,7 +48,7 @@ void configModeCallback(WiFiManager *myWiFiManager) {
 
 void setup() {
   Serial.begin(115200);
-  delay(2000); // Expanded boot wait: Gives native USB CDC serial link time to register on your PC!
+  delay(2000); // Expanded wait: Gives native USB CDC serial link time to bind to PC
 
   Serial.println(F("=== DROID OS BOOTING ==="));
 
@@ -162,7 +158,7 @@ void loop() {
     motor_running = false;
   }
 
-  // --- ROBUST DEBUNCED Real-Time Touch Processing ---
+  // --- REFACTORED: TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
   int rawTouchReading = digitalRead(TOUCH_PIN);
   static int lastRawTouchState = LOW;
   static int debouncedTouchState = LOW;
@@ -177,7 +173,6 @@ void loop() {
     if (rawTouchReading != debouncedTouchState) {
       debouncedTouchState = rawTouchReading;
 
-      // TRACE PRINT 1: Check if hardware signal passes the new 20ms filter
       Serial.print(F("[TOUCH-DEBUG] Stable Debounced State Changed To: "));
       Serial.println(debouncedTouchState == HIGH ? F("HIGH (PRESSED)") : F("LOW (RELEASED)"));
 
@@ -185,17 +180,25 @@ void loop() {
         touch_start_time = millis();
         hold_triggered = false;
       } else {
+        // Finger just lifted! Let's calculate exactly how long it stayed down
         if (!hold_triggered && !showing_dashboard) {
           unsigned long press_duration = millis() - touch_start_time;
           
-          // OPTIMIZED: Uses your TRIGGER_DASHBOARD_MS config threshold
-          if (press_duration < TRIGGER_DASHBOARD_MS) {
-            tap_count++;
-            last_release_time = millis();
-            
-            // TRACE PRINT 2: Check when a clean release processes
-            Serial.print(F("[TOUCH-DEBUG] Clean Tap Detected! Incrementing count to: "));
-            Serial.println(tap_count);
+          Serial.print(F("[TOUCH-DEBUG] Release Event Logged. Total Duration: "));
+          Serial.print(press_duration);
+          Serial.println(F(" ms"));
+
+          // Time Context Bracket Router
+          if (press_duration >= TRIGGER_HAPPY_HOLD_MS && press_duration < TRIGGER_ANGRY_HOLD_MS) {
+            Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion."));
+            roboEyes.setMood(HAPPY);
+            roboEyes.anim_laugh();
+            cute.play(S_SUPER_HAPPY);
+          } 
+          else if (press_duration >= TRIGGER_ANGRY_HOLD_MS && press_duration < TRIGGER_DASHBOARD_MS) {
+            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion."));
+            roboEyes.setMood(ANGRY);
+            cute.play(S_OHOOH); 
           }
         }
       }
@@ -203,39 +206,14 @@ void loop() {
   }
   lastRawTouchState = rawTouchReading;
 
-  // Long Press Hold Evaluation
+  // Real-time Dashboard Threshold Intercept (Triggers instantly at 2 seconds while holding)
   if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
     if (millis() - touch_start_time >= TRIGGER_DASHBOARD_MS) {
-      Serial.println(F("[TOUCH-DEBUG] Long Press Crossed Threshold! Opening Dashboard."));
+      Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Opening Dashboard panel."));
       showing_dashboard = true;
       dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       cute.play(S_BUTTON_PUSHED);               
-      tap_count = 0;         
       hold_triggered = true; 
-    }
-  }
-
-  // Asynchronous Multi-Tap Evaluator
-  if (tap_count > 0 && debouncedTouchState == LOW) {
-    if (millis() - last_release_time >= TAP_GAP_TIMEOUT_MS || tap_count >= TRIGGER_EMOTE_ANGRY_TAPS) {
-      
-      // TRACE PRINT 3: Verify cumulative totals calculated
-      Serial.print(F("[TOUCH-DEBUG] Evaluation Window Closed. Final Tap Group Count: "));
-      Serial.println(tap_count);
-
-      if (tap_count == TRIGGER_EMOTE_HAPPY_TAPS) {
-        Serial.println(F("[TOUCH-DEBUG] Executing single tap HAPPY trigger."));
-        roboEyes.setMood(HAPPY);
-        roboEyes.anim_laugh();
-        cute.play(S_SUPER_HAPPY);
-      } 
-      else if (tap_count == TRIGGER_EMOTE_ANGRY_TAPS) {
-        Serial.println(F("[TOUCH-DEBUG] Executing triple tap ANGRY trigger."));
-        roboEyes.setMood(ANGRY);
-        cute.play(S_OHOOH); 
-      }
-      
-      tap_count = 0; 
     }
   }
 
