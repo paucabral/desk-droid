@@ -36,7 +36,6 @@ unsigned long dashboard_timeout = 0; // Tracks visibility length via config macr
 // Multi-Tap Gesture Tracking Variables
 unsigned long last_release_time = 0;
 int tap_count = 0;
-const unsigned long TAP_GAP_TIMEOUT_MS = 300; // Max time allowed between consecutive taps
 
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
@@ -168,7 +167,6 @@ void loop() {
   static int lastRawTouchState = LOW;
   static int debouncedTouchState = LOW;
   static unsigned long lastDebounceTime = 0;
-  const unsigned long DEBOUNCE_DELAY_MS = 40; 
   static bool hold_triggered = false;          
 
   if (rawTouchReading != lastRawTouchState) {
@@ -179,7 +177,7 @@ void loop() {
     if (rawTouchReading != debouncedTouchState) {
       debouncedTouchState = rawTouchReading;
 
-      // TRACE PRINT 1: See if physical hardware signal passes the debounce filter
+      // TRACE PRINT 1: Check if hardware signal passes the new 20ms filter
       Serial.print(F("[TOUCH-DEBUG] Stable Debounced State Changed To: "));
       Serial.println(debouncedTouchState == HIGH ? F("HIGH (PRESSED)") : F("LOW (RELEASED)"));
 
@@ -189,11 +187,13 @@ void loop() {
       } else {
         if (!hold_triggered && !showing_dashboard) {
           unsigned long press_duration = millis() - touch_start_time;
+          
+          // OPTIMIZED: Uses your TRIGGER_DASHBOARD_MS config threshold
           if (press_duration < TRIGGER_DASHBOARD_MS) {
             tap_count++;
             last_release_time = millis();
             
-            // TRACE PRINT 2: See exactly when a clean single release registers
+            // TRACE PRINT 2: Check when a clean release processes
             Serial.print(F("[TOUCH-DEBUG] Clean Tap Detected! Incrementing count to: "));
             Serial.println(tap_count);
           }
@@ -205,8 +205,8 @@ void loop() {
 
   // Long Press Hold Evaluation
   if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
-    if (millis() - touch_start_time >= 1500) {
-      Serial.println(F("[TOUCH-DEBUG] Long Press Crossed 1.5s Threshold! Opening Dashboard."));
+    if (millis() - touch_start_time >= TRIGGER_DASHBOARD_MS) {
+      Serial.println(F("[TOUCH-DEBUG] Long Press Crossed Threshold! Opening Dashboard."));
       showing_dashboard = true;
       dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       cute.play(S_BUTTON_PUSHED);               
@@ -217,9 +217,9 @@ void loop() {
 
   // Asynchronous Multi-Tap Evaluator
   if (tap_count > 0 && debouncedTouchState == LOW) {
-    if (millis() - last_release_time >= TAP_GAP_TIMEOUT_MS || tap_count >= 3) {
+    if (millis() - last_release_time >= TAP_GAP_TIMEOUT_MS || tap_count >= TRIGGER_EMOTE_ANGRY_TAPS) {
       
-      // TRACE PRINT 3: See what gesture total calculation is processed
+      // TRACE PRINT 3: Verify cumulative totals calculated
       Serial.print(F("[TOUCH-DEBUG] Evaluation Window Closed. Final Tap Group Count: "));
       Serial.println(tap_count);
 
@@ -310,4 +310,4 @@ void loop() {
 
     next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   }
-} // End of loop
+}
