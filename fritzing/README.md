@@ -28,6 +28,12 @@ Parts list directory (as imported in this repository):
 **ADXL345 Accelerometer**
     - [💬 Forum Link](https://github.com/adafruit/Fritzing-Library/blob/master/parts/Adafruit%20ADXL345.fzpz)
     - [💾 Direct Download](blob:https://github.com/917bed7e-a063-43b2-9dba-4fa6b69fdde6)
+**L9110 Motor Driver**
+    - [💬 Forum Link](https://forum.fritzing.org/t/l9110-h-bridge-module/3110)
+    - [💾 Direct Download](https://forum.fritzing.org/uploads/default/original/2X/4/487de66e80684795570d9a0d627331bf5953f003.fzpz)
+**N20 Geared Motor**
+    - [💬 Forum Link](https://forum.fritzing.org/t/anyone-got-an-n20-geared-mini-motor-fritzing-part/10380/11)
+    - [💾 Direct Download](https://forum.fritzing.org/uploads/short-url/jln51m9ZQEeF1leAfTUMDkc4lj8.fzpz)
 
 
 <!-- Template -->
