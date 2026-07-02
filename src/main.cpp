@@ -33,11 +33,15 @@ unsigned long motor_stop_time = 0; // Precision stopwatch for active movement du
 unsigned long touch_start_time = 0;
 unsigned long dashboard_timeout = 0; // Tracks visibility length via config macro
 
+// Multi-Tap Gesture Tracking Variables
+unsigned long last_release_time = 0;
+int tap_count = 0;
+const unsigned long TAP_GAP_TIMEOUT_MS = 300; // Max time allowed between consecutive taps
+
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    // Controls screen routing states
-bool last_touch_state = false;    // Tracks touch transitions edge-triggers
 
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
@@ -49,7 +53,9 @@ void configModeCallback(WiFiManager *myWiFiManager) {
 
 void setup() {
   Serial.begin(115200);
-  delay(250);
+  delay(2000); // Expanded boot wait: Gives native USB CDC serial link time to register on your PC!
+
+  Serial.println(F("=== DROID OS BOOTING ==="));
 
   // 1. Initialize Display
   Wire1.begin(OLED_SDA, OLED_SCL);
@@ -138,20 +144,15 @@ void setup() {
 void loop() {
   // --- Dynamic Screen Page Router ---
   if (!showing_dashboard) {
-    roboEyes.update(); // Update standard expression engine if panel is closed
+    roboEyes.update(); 
   } else {
     if (millis() >= dashboard_timeout) {
-      showing_dashboard = false; // Visibility timer elapsed, revert view context
+      showing_dashboard = false; 
       roboEyes.setMood(DEFAULT);
       roboEyes.setPosition(DEFAULT);
     } else {
-      // Resolve network routing logic for on-screen output
       String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
-      
-      // Placeholder Battery Logic (E.g., Static 85% until fuel gauge hardware is added)
       int mockBattery = 85; 
-
-      // Render the upgraded custom graphic Dashboard panel
       drawDashboard("PARTLY CLOUDY", 27, 62, 20, ipStr.c_str(), mockBattery);
     }
   }
@@ -162,31 +163,79 @@ void loop() {
     motor_running = false;
   }
 
-  // --- Real-Time High-Frequency Touch Gesture Processing ---
-  int touchState = digitalRead(TOUCH_PIN);
-  
-  if (touchState == HIGH && !last_touch_state) {
-    touch_start_time = millis(); 
-    last_touch_state = true;
-  } 
-  else if (touchState == LOW && last_touch_state) {
-    unsigned long press_duration = millis() - touch_start_time;
-    // Short release handler
-    if (press_duration < 1500 && press_duration > 50 && !showing_dashboard) {
-      roboEyes.setMood(HAPPY);
-      roboEyes.anim_laugh();
-      cute.play(S_SUPER_HAPPY);
-    }
-    last_touch_state = false;
+  // --- ROBUST DEBUNCED Real-Time Touch Processing ---
+  int rawTouchReading = digitalRead(TOUCH_PIN);
+  static int lastRawTouchState = LOW;
+  static int debouncedTouchState = LOW;
+  static unsigned long lastDebounceTime = 0;
+  const unsigned long DEBOUNCE_DELAY_MS = 40; 
+  static bool hold_triggered = false;          
+
+  if (rawTouchReading != lastRawTouchState) {
+    lastDebounceTime = millis();
   }
 
-  // Continuous hold tracking evaluation
-  if (touchState == HIGH && last_touch_state && !showing_dashboard) {
+  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY_MS) {
+    if (rawTouchReading != debouncedTouchState) {
+      debouncedTouchState = rawTouchReading;
+
+      // TRACE PRINT 1: See if physical hardware signal passes the debounce filter
+      Serial.print(F("[TOUCH-DEBUG] Stable Debounced State Changed To: "));
+      Serial.println(debouncedTouchState == HIGH ? F("HIGH (PRESSED)") : F("LOW (RELEASED)"));
+
+      if (debouncedTouchState == HIGH) {
+        touch_start_time = millis();
+        hold_triggered = false;
+      } else {
+        if (!hold_triggered && !showing_dashboard) {
+          unsigned long press_duration = millis() - touch_start_time;
+          if (press_duration < TRIGGER_DASHBOARD_MS) {
+            tap_count++;
+            last_release_time = millis();
+            
+            // TRACE PRINT 2: See exactly when a clean single release registers
+            Serial.print(F("[TOUCH-DEBUG] Clean Tap Detected! Incrementing count to: "));
+            Serial.println(tap_count);
+          }
+        }
+      }
+    }
+  }
+  lastRawTouchState = rawTouchReading;
+
+  // Long Press Hold Evaluation
+  if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
     if (millis() - touch_start_time >= 1500) {
+      Serial.println(F("[TOUCH-DEBUG] Long Press Crossed 1.5s Threshold! Opening Dashboard."));
       showing_dashboard = true;
-      dashboard_timeout = millis() + DASHBOARD_DURATION_MS; // Linked to your modular configuration macro
+      dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       cute.play(S_BUTTON_PUSHED);               
-      last_touch_state = false;                  
+      tap_count = 0;         
+      hold_triggered = true; 
+    }
+  }
+
+  // Asynchronous Multi-Tap Evaluator
+  if (tap_count > 0 && debouncedTouchState == LOW) {
+    if (millis() - last_release_time >= TAP_GAP_TIMEOUT_MS || tap_count >= 3) {
+      
+      // TRACE PRINT 3: See what gesture total calculation is processed
+      Serial.print(F("[TOUCH-DEBUG] Evaluation Window Closed. Final Tap Group Count: "));
+      Serial.println(tap_count);
+
+      if (tap_count == TRIGGER_EMOTE_HAPPY_TAPS) {
+        Serial.println(F("[TOUCH-DEBUG] Executing single tap HAPPY trigger."));
+        roboEyes.setMood(HAPPY);
+        roboEyes.anim_laugh();
+        cute.play(S_SUPER_HAPPY);
+      } 
+      else if (tap_count == TRIGGER_EMOTE_ANGRY_TAPS) {
+        Serial.println(F("[TOUCH-DEBUG] Executing triple tap ANGRY trigger."));
+        roboEyes.setMood(ANGRY);
+        cute.play(S_OHOOH); 
+      }
+      
+      tap_count = 0; 
     }
   }
 
@@ -195,7 +244,7 @@ void loop() {
   accel.getEvent(&event);
 
   float delta_x = abs(event.acceleration.x - last_x);
-  float delta_y = abs(event.acceleration.y - last_y);
+  float delta_y = abs(event.acceleration.y - last_y); 
   float delta_z = abs(event.acceleration.z - last_z);
 
   Serial.print("X: "); Serial.print(delta_x);
@@ -218,7 +267,6 @@ void loop() {
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     
-    // Check Ambient Light levels
     int lightLevel = analogRead(LDR_PIN);
     Serial.print("Light Level: "); Serial.println(lightLevel);
     
@@ -262,4 +310,4 @@ void loop() {
 
     next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   }
-}
+} // End of loop

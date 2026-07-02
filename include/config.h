@@ -39,4 +39,9 @@
 #define WIFI_PORTAL_TIMEOUT_SEC  60  // Seconds the hotspot stays active before skipping to offline mode
 
 // DASHBOARD CONFIGURATION
-#define DASHBOARD_DURATION_MS 8000
+#define DASHBOARD_DURATION_MS    8000
+
+// EVENT TRIGGERTS
+#define TRIGGER_DASHBOARD_MS     2000
+#define TRIGGER_EMOTE_HAPPY_TAPS 1
+#define TRIGGER_EMOTE_ANGRY_TAPS 3
