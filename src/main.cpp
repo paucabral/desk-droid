@@ -6,16 +6,10 @@
 #include <Adafruit_ADXL345_U.h>
 #include <CuteBuzzerSounds.h>
 
-// Motor Variables
-#define MOTOR_IB1 2
-#define MOTOR_IA1 3
-#define MOTOR_IB2 4
-#define MOTOR_IA2 5
-
-
 // Modular includes from the include/ folder
 #include "config.h"
 #include "display_ui.h"
+#include "motors.h"
 
 // Instantiate Global Hardware Objects
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
@@ -29,13 +23,6 @@ unsigned long event_timer;
 float last_x = 0, last_y = 0, last_z = 0;
 
 void setup() {
-  // Motor Setup
-  pinMode(MOTOR_IB1, OUTPUT);
-  pinMode(MOTOR_IA1, OUTPUT);
-  pinMode(MOTOR_IB2, OUTPUT);
-  pinMode(MOTOR_IA2, OUTPUT);
-  
-
   Serial.begin(115200);
   delay(250);
 
@@ -74,7 +61,10 @@ void setup() {
   cute.play(S_CONNECTION); 
   delay(600); 
 
-  // 6. Display RoboEyes Custom Splash Card
+  // 6. Initialize Motors
+  initMotors();
+
+  // 7. Display RoboEyes Custom Splash Card
   drawSplashArt();
   delay(3000); 
 
@@ -95,11 +85,6 @@ void setup() {
 
 void loop() {
   roboEyes.update(); // Update screen drawings continuously
-
-  // digitalWrite(MOTOR_IA1, HIGH);
-  // digitalWrite(MOTOR_IB1, LOW);
-  // digitalWrite(MOTOR_IA2, HIGH);
-  // digitalWrite(MOTOR_IB2, LOW);
 
   // --- Real-time Accelerometer Sampling ---
   sensors_event_t event; 

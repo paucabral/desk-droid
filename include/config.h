@@ -22,3 +22,9 @@
 #define ACCEL_SCL          7
 #define ACCEL_SDA          6
 #define SHAKE_THRESHOLD    8.0
+
+// MOTOR CONFIGURATION (Dual H-Bridge e.g., L9110S / L298N)
+#define MOTOR_IA1          3  // Left Motor Forward Control
+#define MOTOR_IB1          2  // Left Motor Backward Control
+#define MOTOR_IA2          5  // Right Motor Forward Control
+#define MOTOR_IB2          4  // Right Motor Backward Control
