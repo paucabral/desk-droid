@@ -18,9 +18,15 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 #include <FluxGarage_RoboEyes.h>
 RoboEyes<Adafruit_SH1106G> roboEyes(display); 
 
+// Global Timers
+unsigned long env_timer;           // Tracks fixed 1-second sensor updates
+unsigned long idle_timer;          // Tracks variable pacing for random movements
+unsigned long next_idle_interval;  // Dynamically changes to randomize rest duration
+unsigned long motor_stop_time = 0; // Precision stopwatch for active movement duration
+
 // Global States
-unsigned long event_timer; 
 float last_x = 0, last_y = 0, last_z = 0;
+bool motor_running = false;
 
 void setup() {
   Serial.begin(115200);
@@ -54,6 +60,9 @@ void setup() {
   pinMode(LDR_PIN, INPUT);
   drawChecklist("*", "*", "*", " ", "   TESTING...");
   delay(500);
+  
+  // Seed the random engine with ambient noise
+  randomSeed(analogRead(LDR_PIN)); 
 
   // 5. Initialize Audio Engine
   cute.init(BUZZER_PIN);
@@ -80,11 +89,20 @@ void setup() {
   roboEyes.setAutoblinker(ON, 3, 2);
   roboEyes.setIdleMode(ON, 2, 2);
 
-  event_timer = millis();
+  // Initialize Timers
+  env_timer = millis();
+  idle_timer = millis();
+  next_idle_interval = random(4000, 9000); // Set first rest duration (4-9 seconds)
 }
 
 void loop() {
   roboEyes.update(); // Update screen drawings continuously
+
+  // --- Real-Time Motor Cutoff ---
+  if (motor_running && millis() >= motor_stop_time) {
+    moveDroid(STOP);
+    motor_running = false;
+  }
 
   // --- Real-time Accelerometer Sampling ---
   sensors_event_t event; 
@@ -108,8 +126,9 @@ void loop() {
     cute.play(S_SURPRISE);
   }
 
-  // --- Slow Timed Environmental Sampling Intermittent Tasks ---
-  if (millis() - event_timer >= 1000) {
+  // --- TIMER 1: Fixed Environmental Sampling (Strictly every 1000ms) ---
+  if (millis() - env_timer >= 1000) {
+    env_timer = millis(); // Reset fixed clock loop
     
     // Check Touch Sensor
     int touchState = digitalRead(TOUCH_PIN);
@@ -122,18 +141,44 @@ void loop() {
     // Check Ambient Light levels
     int lightLevel = analogRead(LDR_PIN);
     Serial.print("Light Level: "); Serial.println(lightLevel);
+    
     if (lightLevel < LDR_THRESHOLD) {
       roboEyes.close();
       roboEyes.setPosition(S);
+      if (motor_running) {
+        moveDroid(STOP);
+        motor_running = false;
+      }
     } else {
       roboEyes.open();
     }
+  }
 
-    // Check Cumulative Mood Timeout (Every 5 seconds)
-    if (millis() - event_timer >= 5000) {
-      roboEyes.setMood(DEFAULT);
-      roboEyes.setPosition(DEFAULT); 
-      event_timer = millis(); // Reset interval track
+  // --- TIMER 2: Randomized Idle Movement (Occasional, Variable Intervals) ---
+  if (millis() - idle_timer >= next_idle_interval) {
+    idle_timer = millis(); // Reset idle reference milestone
+    
+    // Revert animation expressions safely back to neutral when peaceful
+    roboEyes.setMood(DEFAULT);
+    roboEyes.setPosition(DEFAULT); 
+
+    // Read light status to make sure we aren't sleeping
+    int currentLight = analogRead(LDR_PIN);
+    if (currentLight >= LDR_THRESHOLD) {
+      
+      // 40% chance to actually twitch. 60% chance to just stay totally still.
+      if (random(100) < 40) {
+        DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
+        DroidMovement chosenMove = options[random(0, 4)];
+        
+        moveDroid(chosenMove);
+        motor_stop_time = millis() + random(MOTOR_MOVE_DURATION_MIN, MOTOR_MOVE_DURATION_MAX); // Fast twitch duration
+        motor_running = true;
+      }
     }
+
+    // Dynamic Rest Scaling: Choose a totally fresh pause duration for the NEXT loop cycle
+    // The droid will now sit entirely motionless for anywhere between 4 to 10 seconds!
+    next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   }
 }
