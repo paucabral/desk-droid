@@ -36,42 +36,43 @@ void setup() {
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
 
-  // Splash Checklist Phase 1
-  drawChecklist(" ", " ", " ", " ", "INITIALIZING...");
+  // Splash Checklist Phase 1: Everything empty
+  drawChecklist(" ", " ", " ", " ", " ", "INITIALIZING...");
   delay(800); 
 
   // 2. Initialize Accelerometer
   Wire.begin(ACCEL_SDA, ACCEL_SCL);
   if(!accel.begin()) {
-    drawChecklist("X", " ", " ", " ", "ACCELEROMETER ERROR!");
+    drawChecklist("X", " ", " ", " ", " ", "ACCELEROMETER ERROR!");
     Serial.println(F("Ooops, no ADXL345 detected ... Check wiring!"));
     while(1); 
   }
   accel.setRange(ADXL345_RANGE_4_G);
-  drawChecklist("*", " ", " ", " ", "   TESTING...");
+  drawChecklist("*", " ", " ", " ", " ", "   TESTING...");
   delay(500);
 
   // 3. Initialize Touch GPIO Pin
   pinMode(TOUCH_PIN, INPUT);
-  drawChecklist("*", "*", " ", " ", "   TESTING...");
+  drawChecklist("*", "*", " ", " ", " ", "   TESTING...");
   delay(500);
 
   // 4. Initialize LDR Pin
   pinMode(LDR_PIN, INPUT);
-  drawChecklist("*", "*", "*", " ", "   TESTING...");
+  drawChecklist("*", "*", "*", " ", " ", "   TESTING...");
   delay(500);
-  
-  // Seed the random engine with ambient noise
-  randomSeed(analogRead(LDR_PIN)); 
 
   // 5. Initialize Audio Engine
   cute.init(BUZZER_PIN);
-  drawChecklist("*", "*", "*", "*", "       READY!");
-  cute.play(S_CONNECTION); 
-  delay(600); 
+  drawChecklist("*", "*", "*", "*", " ", "   TESTING...");
+  delay(500);
 
   // 6. Initialize Motors
   initMotors();
+  drawChecklist("*", "*", "*", "*", "*", "       READY!");
+  
+  // Play startup tone sequence once checklist items are complete
+  cute.play(S_CONNECTION); 
+  delay(600); 
 
   // 7. Display RoboEyes Custom Splash Card
   drawSplashArt();
@@ -92,7 +93,8 @@ void setup() {
   // Initialize Timers
   env_timer = millis();
   idle_timer = millis();
-  next_idle_interval = random(4000, 9000); // Set first rest duration (4-9 seconds)
+  next_idle_interval = random(4000, 9000); 
+  randomSeed(analogRead(LDR_PIN)); 
 }
 
 void loop() {
@@ -128,7 +130,7 @@ void loop() {
 
   // --- TIMER 1: Fixed Environmental Sampling (Strictly every 1000ms) ---
   if (millis() - env_timer >= 1000) {
-    env_timer = millis(); // Reset fixed clock loop
+    env_timer = millis(); 
     
     // Check Touch Sensor
     int touchState = digitalRead(TOUCH_PIN);
@@ -156,29 +158,24 @@ void loop() {
 
   // --- TIMER 2: Randomized Idle Movement (Occasional, Variable Intervals) ---
   if (millis() - idle_timer >= next_idle_interval) {
-    idle_timer = millis(); // Reset idle reference milestone
+    idle_timer = millis(); 
     
-    // Revert animation expressions safely back to neutral when peaceful
     roboEyes.setMood(DEFAULT);
     roboEyes.setPosition(DEFAULT); 
 
-    // Read light status to make sure we aren't sleeping
     int currentLight = analogRead(LDR_PIN);
     if (currentLight >= LDR_THRESHOLD) {
       
-      // 40% chance to actually twitch. 60% chance to just stay totally still.
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
         DroidMovement chosenMove = options[random(0, 4)];
         
         moveDroid(chosenMove);
-        motor_stop_time = millis() + random(MOTOR_MOVE_DURATION_MIN, MOTOR_MOVE_DURATION_MAX); // Fast twitch duration
+        motor_stop_time = millis() + random(150, 300); 
         motor_running = true;
       }
     }
 
-    // Dynamic Rest Scaling: Choose a totally fresh pause duration for the NEXT loop cycle
-    // The droid will now sit entirely motionless for anywhere between 4 to 10 seconds!
-    next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
+    next_idle_interval = random(4000, 10000); 
   }
 }

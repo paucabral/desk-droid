@@ -1,21 +1,24 @@
 #include "display_ui.h"
 #include "config.h"
 
-void drawChecklist(const char* accel, const char* touch, const char* light, const char* audio, const char* sysMsg) {
+void drawChecklist(const char* accel, const char* touch, const char* light, const char* audio, const char* motors, const char* sysMsg) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
   
+  // Header (Lines 1 & 2)
   display.setCursor(0, 0);
   display.println(F("=== SYSTEMS CHECK ==="));
   display.println(F("---------------------"));
   
+  // Checklist Items (Lines 3, 4, 5, 6, & 7)
   display.print(F("[")); display.print(accel); display.println(F("]     ACCELEROMETER"));
   display.print(F("[")); display.print(touch); display.println(F("]      TOUCH SENSOR"));
   display.print(F("[")); display.print(light); display.println(F("]      LIGHT SENSOR"));
   display.print(F("[")); display.print(audio); display.println(F("]      BUZZER AUDIO"));
+  display.print(F("[")); display.print(motors); display.println(F("]      MOTOR DRIVER"));
   
-  display.println(F("---------------------"));
+  // Footer Status (Line 8) - Divider removed to prevent overflow scrolling
   display.print(F("STATUS: ")); display.println(sysMsg);
   
   display.display();
