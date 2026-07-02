@@ -37,3 +37,6 @@
 #define WIFI_AP_NAME             "Desk-Droid-Setup"
 #define WIFI_CONNECT_TIMEOUT_SEC 10  // Seconds to try connecting to saved home Wi-Fi
 #define WIFI_PORTAL_TIMEOUT_SEC  60  // Seconds the hotspot stays active before skipping to offline mode
+
+// DASHBOARD CONFIGURATION
+#define DASHBOARD_DURATION_MS 8000

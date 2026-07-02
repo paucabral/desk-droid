@@ -79,24 +79,42 @@ void drawWifiScreen(const char* header, const char* status, const char* ipOrInst
   display.display();
 }
 
-void drawWeatherScreen(const char* condition, int temp, int humidity, int rainChance) {
+void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
 
-  // Header Layout
+  // 1. Header Text
   display.setCursor(0, 0);
-  display.println(F("=== WEATHER REPORT ==="));
-  display.println(F("---------------------"));
+  display.print(F("=== DASHBOARD ==="));
+
+  // 2. Graphic Battery Icon Element (Top Right Corner Area)
+  display.drawRect(106, 0, 16, 8, SH110X_WHITE);       // Main cell block shell
+  display.drawFastVLine(122, 2, 4, SH110X_WHITE);      // Battery positive cathode node tip
   
-  // Weather Info Rows
-  display.print(F("STATUS: ")); display.println(condition);
+  // Constrain percentage and map it to internal fill pixels (Max 12 pixels across)
+  int clampedBattery = (batteryPercent > 100) ? 100 : ((batteryPercent < 0) ? 0 : batteryPercent);
+  int fillWidth = (clampedBattery * 12) / 100;
+  if (fillWidth > 0) {
+    display.fillRect(108, 2, fillWidth, 4, SH110X_WHITE); // Internal energy level bar fill
+  }
+
+  // Divider Line accent rule
+  display.drawFastHLine(0, 10, 128, SH110X_WHITE);
+
+  // 3. System Data Content Metrics
+  display.setCursor(0, 14);
+  display.print(F("ENV:    ")); display.println(condition);
   display.print(F("TEMP:   ")); display.print(temp); display.println(F(" C"));
   display.print(F("HUMID:  ")); display.print(humidity); display.println(F("%"));
-  display.print(F("RAIN %: ")); display.print(rainChance); display.println(F("%"));
+  display.print(F("RAIN%:  ")); display.print(rainChance); display.println(F("%"));
   
-  display.println(F("---------------------"));
-  display.print(F("MODE:   SYS ACTIVE"));
+  // Footer Border Line
+  display.drawFastHLine(0, 49, 128, SH110X_WHITE);
+
+  // 4. Network Metadata Row
+  display.setCursor(0, 54);
+  display.print(F("IP: ")); display.println(ipAddress);
 
   display.display();
 }

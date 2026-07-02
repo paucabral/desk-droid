@@ -31,12 +31,12 @@ unsigned long motor_stop_time = 0; // Precision stopwatch for active movement du
 
 // Gesture & Page Management Timers
 unsigned long touch_start_time = 0;
-unsigned long weather_screen_timeout = 0;
+unsigned long dashboard_timeout = 0; // Tracks visibility length via config macro
 
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
-bool showing_weather = false;     // Controls screen visibility
+bool showing_dashboard = false;    // Controls screen routing states
 bool last_touch_state = false;    // Tracks touch transitions edge-triggers
 
 void configModeCallback(WiFiManager *myWiFiManager) {
@@ -137,16 +137,22 @@ void setup() {
 
 void loop() {
   // --- Dynamic Screen Page Router ---
-  if (!showing_weather) {
-    roboEyes.update(); // Update eye drawing frame updates when active
+  if (!showing_dashboard) {
+    roboEyes.update(); // Update standard expression engine if panel is closed
   } else {
-    if (millis() >= weather_screen_timeout) {
-      showing_weather = false; // Page visibility expired, return to eyes
+    if (millis() >= dashboard_timeout) {
+      showing_dashboard = false; // Visibility timer elapsed, revert view context
       roboEyes.setMood(DEFAULT);
       roboEyes.setPosition(DEFAULT);
     } else {
-      // Render our mock screen using mock values for testing
-      drawWeatherScreen("PARTLY CLOUDY", 27, 62, 20);
+      // Resolve network routing logic for on-screen output
+      String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
+      
+      // Placeholder Battery Logic (E.g., Static 85% until fuel gauge hardware is added)
+      int mockBattery = 85; 
+
+      // Render the upgraded custom graphic Dashboard panel
+      drawDashboard("PARTLY CLOUDY", 27, 62, 20, ipStr.c_str(), mockBattery);
     }
   }
 
@@ -156,17 +162,17 @@ void loop() {
     motor_running = false;
   }
 
-  // --- NEW: Real-Time High-Frequency Touch Gesture Processing ---
+  // --- Real-Time High-Frequency Touch Gesture Processing ---
   int touchState = digitalRead(TOUCH_PIN);
   
   if (touchState == HIGH && !last_touch_state) {
-    touch_start_time = millis(); // User just placed their finger down, start clock
+    touch_start_time = millis(); 
     last_touch_state = true;
   } 
   else if (touchState == LOW && last_touch_state) {
     unsigned long press_duration = millis() - touch_start_time;
-    // If released before 1.5 seconds, process as a regular happy tap
-    if (press_duration < 1500 && press_duration > 50 && !showing_weather) {
+    // Short release handler
+    if (press_duration < 1500 && press_duration > 50 && !showing_dashboard) {
       roboEyes.setMood(HAPPY);
       roboEyes.anim_laugh();
       cute.play(S_SUPER_HAPPY);
@@ -174,13 +180,13 @@ void loop() {
     last_touch_state = false;
   }
 
-  // Evaluate if continuous hold crosses threshold while finger is still down
-  if (touchState == HIGH && last_touch_state && !showing_weather) {
+  // Continuous hold tracking evaluation
+  if (touchState == HIGH && last_touch_state && !showing_dashboard) {
     if (millis() - touch_start_time >= 1500) {
-      showing_weather = true;
-      weather_screen_timeout = millis() + 6000; // Keep page active for 6000ms (6s)
-      cute.play(S_BUTTON_PUSHED);               // Notification chime indicating switch
-      last_touch_state = false;                  // Disarm trigger tracking until next down edge
+      showing_dashboard = true;
+      dashboard_timeout = millis() + DASHBOARD_DURATION_MS; // Linked to your modular configuration macro
+      cute.play(S_BUTTON_PUSHED);               
+      last_touch_state = false;                  
     }
   }
 
@@ -201,8 +207,7 @@ void loop() {
   last_z = event.acceleration.z;
 
   if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
-    // Only interrupt with shake expression if not showing data sheet
-    if (!showing_weather) {
+    if (!showing_dashboard) {
       roboEyes.setMood(TIRED);
       roboEyes.anim_confused();
     }
@@ -218,7 +223,7 @@ void loop() {
     Serial.print("Light Level: "); Serial.println(lightLevel);
     
     if (lightLevel < LDR_THRESHOLD) {
-      if (!showing_weather) {
+      if (!showing_dashboard) {
         roboEyes.close();
         roboEyes.setPosition(S);
       }
@@ -227,7 +232,7 @@ void loop() {
         motor_running = false;
       }
     } else {
-      if (!showing_weather) {
+      if (!showing_dashboard) {
         roboEyes.open();
       }
     }
@@ -237,14 +242,13 @@ void loop() {
   if (millis() - idle_timer >= next_idle_interval) {
     idle_timer = millis(); 
     
-    // Only clear expressions if we aren't displaying data details
-    if (!showing_weather) {
+    if (!showing_dashboard) {
       roboEyes.setMood(DEFAULT);
       roboEyes.setPosition(DEFAULT); 
     }
 
     int currentLight = analogRead(LDR_PIN);
-    if (currentLight >= LDR_THRESHOLD && !showing_weather) {
+    if (currentLight >= LDR_THRESHOLD && !showing_dashboard) {
       
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
