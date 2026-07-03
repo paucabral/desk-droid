@@ -7,6 +7,7 @@
 ### 💿 Software
 1. [Visual Studio Code](https://code.visualstudio.com/)
 2. [PlatformIO](https://platformio.org/) (VSCode Extension)
+3. [OpenWeather API Key](https://openweathermap.org/api)
 
 ### ⚙️ Hardware
 
