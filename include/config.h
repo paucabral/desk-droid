@@ -42,7 +42,6 @@
 #define DASHBOARD_DURATION_MS    8000
 
 // EVENT TRIGGERTS
-#define TRIGGER_DASHBOARD_MS     2000
 #define TRIGGER_HAPPY_HOLD_MS    50
 #define TRIGGER_ANGRY_HOLD_MS    2000  // Anything past 2 seconds makes it angry
 #define TRIGGER_DASHBOARD_MS     5000  // Keeping it held for 5 full seconds opens dashboard
