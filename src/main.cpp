@@ -245,10 +245,10 @@ void loop() {
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     
-    int lightLevel = analogRead(LDR_PIN);
-    Serial.print("Light Level: "); Serial.println(lightLevel);
+    int light_level = analogRead(LDR_PIN);
+    Serial.print("Light Level: "); Serial.println(light_level);
     
-    if (lightLevel < LDR_THRESHOLD) {
+    if (light_level < LDR_THRESHOLD) {
       if (!showing_dashboard) {
         roboEyes.close();
         roboEyes.setPosition(S);
@@ -273,8 +273,8 @@ void loop() {
       roboEyes.setPosition(DEFAULT); 
     }
 
-    int currentLight = analogRead(LDR_PIN);
-    if (currentLight >= LDR_THRESHOLD && !showing_dashboard) {
+    int current_light = analogRead(LDR_PIN);
+    if (current_light >= LDR_THRESHOLD && !showing_dashboard) {
       
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};

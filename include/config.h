@@ -16,7 +16,7 @@
 
 // LIGHT SENSOR (LDR) CONFIGURATION
 #define LDR_PIN                 8
-#define LDR_THRESHOLD           300 
+#define LDR_THRESHOLD           200 
 
 // ACCELEROMETER CONFIGURATION
 #define ACCEL_SCL               7
