@@ -28,7 +28,7 @@
     - DC Motor G12 N20 w/ L9110s Motor Driver
 
 - **Power**:
-    <!-- - ?? mAh LiPo Battery -->
+    - *??* mAh LiPo Battery
     <!-- - TP4065 Charger Module -->
     <!-- - DC Boost Step Up Module - 3.7V to 5V -->
     <!-- - Dip Switch - 3 Pins SPDT -->
