@@ -49,3 +49,10 @@
 
 // LIVE API CONFIGURATION
 #define WEATHER_UPDATE_INTERVAL   900000  // Refresh every 15 minutes (in milliseconds)
+
+// SHUTDOWN & SLEEP TRIGGERS
+#define FREE_BATTERY_PIN         1     // Change this to your 1 remaining physical GPIO pin index!
+#define TRIGGER_SLEEP_MS         10000  // Holding the touch pad for 10 full seconds triggers "Shutdown" Mode
+
+// ADC CALIBRATION PROPERTIES
+#define ADC_VREF_VOLTAGE         3.3   // ESP32-S3 internal operating logic voltage reference cap

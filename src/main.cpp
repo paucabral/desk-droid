@@ -11,6 +11,7 @@
 #include <WiFiManager.h> // Includes WiFi.h, WebServer.h, DNSServer.h, and Preferences.h internally
 #include <HTTPClient.h>  // Native ESP32 web network client stack
 #include <ArduinoJson.h> // Structured JSON parsing library
+#include <esp_sleep.h>   // Native ESP32 Deep Sleep Core Controls
 
 // Modular includes from the include/ folder
 #include "config.h"
@@ -30,7 +31,7 @@ unsigned long env_timer;           // Tracks fixed 1-second sensor updates
 unsigned long idle_timer;          // Tracks variable pacing for random movements
 unsigned long next_idle_interval;  // Dynamically changes to randomize rest duration
 unsigned long motor_stop_time = 0; // Precision stopwatch for active movement duration
-unsigned long weather_timer = 0;   // NEW: Non-blocking 15-minute background web polling clock
+unsigned long weather_timer = 0;   // Non-blocking 15-minute background web polling clock
 
 // Gesture & Page Management Timers
 unsigned long touch_start_time = 0;
@@ -41,12 +42,15 @@ float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    // Controls screen routing states
 
-// Live API Dynamic Data Registries (Initialized with placeholder defaults)
+// Live API Dynamic Data Registries
 String live_location = "UNKNOWN";
 String live_condition = "WAITING...";
 int live_temp = 0;
 int live_humidity = 0;
 int live_rain_chance = 0;
+
+// Dynamic Fuel Gauge Variable
+int live_battery_percentage = 100;
 
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
@@ -56,7 +60,6 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   cute.play(S_MODE1); 
 }
 
-// Dual-Stage Asynchronous Network Fetching Engine
 void fetchLocationAndWeather() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println(F("[API-DEBUG] Cannot update weather. WiFi disconnected."));
@@ -64,13 +67,11 @@ void fetchLocationAndWeather() {
   }
 
   HTTPClient http;
-  JsonDocument doc; // Scalable JSON Document registry buffer allocation
+  JsonDocument doc; 
   float lat = 0.0;
   float lon = 0.0;
 
   Serial.println(F("[API-DEBUG] Starting Stage 1: Requesting IP Geolocation..."));
-  
-  // Phase 1: Ping ip-api to geolocate public network access point addresses
   http.begin("http://ip-api.com/json/");
   int httpCode = http.GET();
 
@@ -82,24 +83,18 @@ void fetchLocationAndWeather() {
       live_location = doc["city"].as<String>();
       lat = doc["lat"].as<float>();
       lon = doc["lon"].as<float>();
-      
       Serial.print(F("[API-DEBUG] Geolocation Success! City: ")); Serial.println(live_location);
-      Serial.print(F("[API-DEBUG] Coordinates Latched: ")); Serial.print(lat); Serial.print(F(", ")); Serial.println(lon);
     } else {
       Serial.print(F("[API-DEBUG] Geolocation JSON parse error: ")); Serial.println(error.c_str());
     }
-  } else {
-    Serial.print(F("[API-DEBUG] Geolocation HTTP request failed, error code: ")); Serial.println(httpCode);
   }
-  http.end(); // Clear connection state cleanly
+  http.end(); 
 
-  // Guard: If Geolocation tracking completely failed, cancel step 2 routing
   if (lat == 0.0 && lon == 0.0) return;
 
   Serial.println(F("[API-DEBUG] Starting Stage 2: Requesting Meteorological Telemetry..."));
-  doc.clear(); // Safe clean context dump before refilling Document space
+  doc.clear(); 
 
-  // Phase 2: Compile custom localized coordinate string to poll OpenWeather Server
   String weatherUrl = "http://api.openweathermap.org/data/2.5/weather?lat=" + String(lat, 4) + 
                       "&lon=" + String(lon, 4) + 
                       "&appid=" + String(OPENWEATHER_API_KEY) + 
@@ -116,21 +111,46 @@ void fetchLocationAndWeather() {
       live_condition = doc["weather"][0]["main"].as<String>();
       live_temp = round(doc["main"]["temp"].as<float>());
       live_humidity = doc["main"]["humidity"].as<int>();
-      
-      // Note: Free OpenWeather endpoints don't output "chance percentage" natively. 
-      // We parse cloud coverage density as a dynamic substitute matrix calculation model.
       live_rain_chance = doc["clouds"]["all"].as<int>(); 
-
-      live_condition.toUpperCase(); // Force capitalization to fit uniform screen metrics
-
+      live_condition.toUpperCase(); 
       Serial.println(F("[API-DEBUG] Weather updated successfully!"));
-    } else {
-      Serial.print(F("[API-DEBUG] Weather JSON parse error: ")); Serial.println(error.c_str());
     }
-  } else {
-    Serial.print(F("[API-DEBUG] Weather HTTP failure endpoint response: ")); Serial.println(httpCode);
   }
   http.end();
+}
+
+// System Power Shutdown Sequence Routine
+void enterSystemDeepSleep() {
+  Serial.println(F("[POWER-MANAGEMENT] Executing animated software shutdown protocol..."));
+  
+  // 1. Safe-stop the drive motors completely
+  moveDroid(STOP);
+  
+  // 2. Clear any lingering emotional expressions and order the eyes to close
+  roboEyes.setMood(DEFAULT);
+  roboEyes.close();
+  
+  // 3. Manually call update() once outside the main loop to force-render the closed eyes
+  roboEyes.update(); 
+  
+  // 4. Play the distinct cinematic low-pitch "power down" sound effect matching the closed eyes
+  cute.play(S_DISCONNECTION);
+  
+  // 5. Hold the closed eyes visual state on the screen for 2 seconds for a cinematic fade look
+  delay(2000); 
+
+  // 6. Turn off display panel entirely to maximize battery preservation during deep sleep
+  display.clearDisplay();
+  display.display();
+
+  // 7. Register TOUCH_PIN (GPIO 10) as an active External High Wakeup Trigger
+  esp_sleep_enable_ext1_wakeup(1ULL << TOUCH_PIN, ESP_EXT1_WAKEUP_ANY_HIGH);
+  
+  Serial.println(F("[POWER-MANAGEMENT] Droid entering deep sleep state now. Goodnight!"));
+  delay(100);
+  
+  // 8. Push CPU Core to Deep Sleep power plane restriction mode
+  esp_deep_sleep_start();
 }
 
 void setup() {
@@ -192,14 +212,10 @@ void setup() {
   if (wifi_success) {
     String ipMsg = "IP: " + WiFi.localIP().toString();
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
-    Serial.print(F("WiFi Connected successfully. Assigned IP: "));
-    Serial.println(WiFi.localIP());
-    
     live_location = "LOCALIZING..."; 
-    fetchLocationAndWeather(); // Fire off initial network fetch right at startup sequence loop boundary
+    fetchLocationAndWeather(); 
   } else {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
-    Serial.println(F("WiFi Portal timed out or failed. Proceeding to Offline Mode safely..."));
     live_location = "OFFLINE"; 
     live_condition = "N/A";
   }
@@ -240,10 +256,9 @@ void loop() {
       roboEyes.setPosition(DEFAULT);
     } else {
       String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
-      int mockBattery = 85; 
-
-      // Render Dashboard mapping dynamic web variables
-      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), mockBattery, live_location.c_str());
+      
+      // Render Dashboard mapping live calculated battery readings!
+      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), live_battery_percentage, live_location.c_str());
     }
   }
 
@@ -253,10 +268,10 @@ void loop() {
     motor_running = false;
   }
 
-  // --- NEW: TIMER 3 - Background Web Updating (Every 15 Minutes) ---
+  // --- Background Web Updating (Every 15 Minutes) ---
   if (WiFi.status() == WL_CONNECTED && (millis() - weather_timer >= WEATHER_UPDATE_INTERVAL)) {
     weather_timer = millis(); 
-    fetchLocationAndWeather(); // Refreshes string properties quietly without freezing eyes
+    fetchLocationAndWeather(); 
   }
 
   // --- TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
@@ -293,20 +308,16 @@ void loop() {
             roboEyes.setMood(HAPPY);
             roboEyes.anim_laugh();
             cute.play(S_SUPER_HAPPY);
-
-            // KINETIC ADDITION: Happy Little Hop Forward
             moveDroid(FORWARD);
-            motor_stop_time = millis() + 150; // Drive forward for just 150ms
+            motor_stop_time = millis() + 150;
             motor_running = true;
           } 
           else if (press_duration >= TRIGGER_ANGRY_HOLD_MS && press_duration < TRIGGER_DASHBOARD_MS) {
-            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion & defensive jump."));
+            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion & retreat."));
             roboEyes.setMood(ANGRY);
             cute.play(S_OHOOH); 
-
-            // KINETIC ADDITION: Angry Startle Reflex (Jumps backward rapidly)
             moveDroid(BACKWARD);
-            motor_stop_time = millis() + 300; // Drive backward for 300ms to "retreat" defensively
+            motor_stop_time = millis() + 300;
             motor_running = true;
           }
         }
@@ -315,14 +326,23 @@ void loop() {
   }
   lastRawTouchState = rawTouchReading;
 
-  // Real-time Dashboard Threshold Intercept
+  // Real-time Dashboard Threshold Intercept (Triggers instantly at 5 seconds)
   if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
-    if (millis() - touch_start_time >= TRIGGER_DASHBOARD_MS) {
+    unsigned long current_hold_duration = millis() - touch_start_time;
+
+    if (current_hold_duration >= TRIGGER_DASHBOARD_MS && current_hold_duration < TRIGGER_SLEEP_MS) {
       Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Opening Dashboard panel."));
       showing_dashboard = true;
       dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       cute.play(S_BUTTON_PUSHED);               
       hold_triggered = true; 
+    }
+  }
+
+  // NEW: Real-time Shutdown Intercept (Triggers instantly at 8 seconds while holding)
+  if (debouncedTouchState == HIGH && !showing_dashboard) {
+    if (millis() - touch_start_time >= TRIGGER_SLEEP_MS) {
+      enterSystemDeepSleep(); // Diverts system execution completely to power down
     }
   }
 
@@ -333,10 +353,6 @@ void loop() {
   float delta_x = abs(event.acceleration.x - last_x);
   float delta_y = abs(event.acceleration.y - last_y); 
   float delta_z = abs(event.acceleration.z - last_z);
-
-  Serial.print("X: "); Serial.print(delta_x);
-  Serial.print(" Y: "); Serial.print(delta_y);
-  Serial.print(" Z: "); Serial.println(delta_z);
 
   last_x = event.acceleration.x;
   last_y = event.acceleration.y;
@@ -350,10 +366,25 @@ void loop() {
     cute.play(S_SURPRISE);
   }
 
-  // --- TIMER 1: Fixed Environmental Sampling (Strictly every 1000ms) ---
+  // --- TIMER 1: Fixed Environmental Sampling & FUEL GAUGE MATH (Every 1000ms) ---
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     
+    // NEW: Precise Lithium Polymer Fuel Gauge Logic
+    // 12-bit ADC converts voltages to an integer range between 0 and 4095
+    int rawADC = analogRead(FREE_BATTERY_PIN);
+    
+    // Scale tracking to isolate structural voltage crossing points
+    float pinVoltage = (rawADC / 4095.0) * ADC_VREF_VOLTAGE;
+    float calculatedBatteryVoltage = pinVoltage * 2.0; // Multiplied by 2 to compensate for the equal 1:1 hardware resistor divider
+
+    // Map typical LiPo discharge curve values (4.2V fully charged down to 3.5V safe empty cutoff)
+    int calculatedPct = map(round(calculatedBatteryVoltage * 100), 3500, 4200, 0, 100);
+    live_battery_percentage = constrain(calculatedPct, 0, 100);
+
+    Serial.print(F("Battery Voltage: ")); Serial.print(calculatedBatteryVoltage);
+    Serial.print(F("V | Percentage: ")); Serial.print(live_battery_percentage); Serial.println(F("%"));
+
     int light_level = analogRead(LDR_PIN);
     Serial.print("Light Level: "); Serial.println(light_level);
     
@@ -384,17 +415,14 @@ void loop() {
 
     int current_light = analogRead(LDR_PIN);
     if (current_light >= LDR_THRESHOLD && !showing_dashboard) {
-      
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
         DroidMovement chosenMove = options[random(0, 4)];
-        
         moveDroid(chosenMove);
         motor_stop_time = millis() + random(MOTOR_MOVE_DURATION_MIN, MOTOR_MOVE_DURATION_MAX); 
         motor_running = true;
       }
     }
-
     next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   }
 }
