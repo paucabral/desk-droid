@@ -56,3 +56,7 @@
 
 // ADC CALIBRATION PROPERTIES
 #define ADC_VREF_VOLTAGE         3.3   // ESP32-S3 internal operating logic voltage reference cap
+
+// DYNAMIC SWEAT EMOTION CONFIGURATION
+#define SWEAT_TEMP_THRESHOLD_C   30    // Temperature threshold to trigger sweat (Celsius)
+#define SWEAT_ANIM_DURATION_MS   2000  // Duration of the brief transitional sweat animation (in ms)

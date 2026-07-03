@@ -36,11 +36,14 @@ unsigned long weather_timer = 0;   // Non-blocking 15-minute background web poll
 // Gesture & Page Management Timers
 unsigned long touch_start_time = 0;
 unsigned long dashboard_timeout = 0; // Tracks visibility length via config macro
+unsigned long sweat_timeout = 0;     // Non-blocking transitional sweat animation clock
 
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    // Controls screen routing states
+bool showing_pre_sweat = false;    // Handles looking ahead at hot weather alert states
+bool showing_post_sweat = false;   // Handles post-menu cooldown states
 
 // Live API Dynamic Data Registries
 String live_location = "UNKNOWN";
@@ -52,12 +55,28 @@ int live_rain_chance = 0;
 // Dynamic Fuel Gauge Variable
 int live_battery_percentage = 100;
 
+// FreeRTOS Asynchronous Audio Core Elements
+QueueHandle_t buzzerQueue; 
+
+void buzzerCore0Task(void *pvParameters) {
+  int soundId;
+  for (;;) {
+    if (xQueueReceive(buzzerQueue, &soundId, portMAX_DELAY) == pdPASS) {
+      cute.play(soundId); 
+    }
+  }
+}
+
+void playSoundAsync(int soundId) {
+  xQueueSend(buzzerQueue, &soundId, 0);
+}
+
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
   Serial.print(F("AP IP Address: "));
   Serial.println(WiFi.softAPIP());
   drawWifiScreen("PORTAL ACTIVE", "CONFIG MODE", "Connect your device\nto: Desk-Droid-Setup");
-  cute.play(S_MODE1); 
+  playSoundAsync(S_MODE1); 
 }
 
 void fetchLocationAndWeather() {
@@ -84,8 +103,6 @@ void fetchLocationAndWeather() {
       lat = doc["lat"].as<float>();
       lon = doc["lon"].as<float>();
       Serial.print(F("[API-DEBUG] Geolocation Success! City: ")); Serial.println(live_location);
-    } else {
-      Serial.print(F("[API-DEBUG] Geolocation JSON parse error: ")); Serial.println(error.c_str());
     }
   }
   http.end(); 
@@ -119,37 +136,50 @@ void fetchLocationAndWeather() {
   http.end();
 }
 
-// System Power Shutdown Sequence Routine
+// Optimized Multi-Chapter System Power Shutdown Routine
 void enterSystemDeepSleep() {
-  Serial.println(F("[POWER-MANAGEMENT] Executing animated software shutdown protocol..."));
+  Serial.println(F("[POWER-MANAGEMENT] Executing multi-stage animated shutdown protocol..."));
   
   // 1. Safe-stop the drive motors completely
   moveDroid(STOP);
   
-  // 2. Clear any lingering emotional expressions and order the eyes to close
+  // CHAPTER 1: Execute full downward closing animation loop
   roboEyes.setMood(DEFAULT);
   roboEyes.close();
+  roboEyes.setPosition(S);
   
-  // 3. Manually call update() once outside the main loop to force-render the closed eyes
-  roboEyes.update(); 
+  unsigned long anim_start = millis();
+  while (millis() - anim_start < 1000) { 
+    roboEyes.update();
+    delay(15); 
+  }
   
-  // 4. Play the distinct cinematic low-pitch "power down" sound effect matching the closed eyes
+  // CHAPTER 2: Lock and hold the fully closed eyes on the screen for a moment
+  delay(1000); 
+  
+  // CHAPTER 3: Wipe eyes to display the custom text splash card panel
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(12, 24);
+  display.println(F("ENTERING SLEEP MODE"));
+  display.setCursor(30, 40);
+  display.println(F("POWERING DOWN..."));
+  display.display();
+  
   cute.play(S_DISCONNECTION);
   
-  // 5. Hold the closed eyes visual state on the screen for 2 seconds for a cinematic fade look
   delay(2000); 
 
-  // 6. Turn off display panel entirely to maximize battery preservation during deep sleep
   display.clearDisplay();
   display.display();
 
-  // 7. Register TOUCH_PIN (GPIO 10) as an active External High Wakeup Trigger
+  // Register TOUCH_PIN (GPIO 10) as Wakeup Trigger
   esp_sleep_enable_ext1_wakeup(1ULL << TOUCH_PIN, ESP_EXT1_WAKEUP_ANY_HIGH);
   
   Serial.println(F("[POWER-MANAGEMENT] Droid entering deep sleep state now. Goodnight!"));
   delay(100);
   
-  // 8. Push CPU Core to Deep Sleep power plane restriction mode
   esp_deep_sleep_start();
 }
 
@@ -193,6 +223,12 @@ void setup() {
   drawChecklist("*", "*", "*", "*", " ", "   TESTING...");
   delay(500);
 
+  buzzerQueue = xQueueCreate(2, sizeof(int));
+
+  xTaskCreatePinnedToCore(
+    buzzerCore0Task, "BuzzerTask", 3072, NULL, 1, NULL, 0
+  );
+
   // 6. Initialize Motors
   initMotors();
   drawChecklist("*", "*", "*", "*", "*", "       READY!");
@@ -225,12 +261,11 @@ void setup() {
   drawSplashArt();
   delay(3000); 
 
-  // Sci-Fi Screen Flicker Effect
   for(int i = 0; i < 3; i++) {
     display.clearDisplay(); display.display(); delay(40);
     drawSplashArt(); delay(60);
   }
-  cute.play(S_HAPPY_SHORT);
+  playSoundAsync(S_HAPPY_SHORT);
 
   // Transition Control to RoboEyes Engine
   roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
@@ -247,19 +282,47 @@ void setup() {
 
 void loop() {
   // --- Dynamic Screen Page Router ---
-  if (!showing_dashboard) {
-    roboEyes.update(); 
-  } else {
+  if (showing_dashboard) {
     if (millis() >= dashboard_timeout) {
       showing_dashboard = false; 
+      
+      if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
+        Serial.println(F("[EMOTION-DEBUG] Dashboard closed. Entering Post-Sweat mode..."));
+        showing_post_sweat = true;
+        sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
+        roboEyes.setMood(TIRED);
+        roboEyes.setSweat(ON);
+      } else {
+        roboEyes.setMood(DEFAULT);
+        roboEyes.setPosition(DEFAULT);
+      }
+    } else {
+      String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
+      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), live_battery_percentage, live_location.c_str());
+    }
+  } 
+  else if (showing_pre_sweat) {
+    if (millis() >= sweat_timeout) {
+      showing_pre_sweat = false;
+      roboEyes.setSweat(OFF); 
+      showing_dashboard = true;
+      dashboard_timeout = millis() + DASHBOARD_DURATION_MS;
+    } else {
+      roboEyes.update(); 
+    }
+  } 
+  else if (showing_post_sweat) {
+    if (millis() >= sweat_timeout) {
+      showing_post_sweat = false;
+      roboEyes.setSweat(OFF);
       roboEyes.setMood(DEFAULT);
       roboEyes.setPosition(DEFAULT);
     } else {
-      String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
-      
-      // Render Dashboard mapping live calculated battery readings!
-      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), live_battery_percentage, live_location.c_str());
+      roboEyes.update();
     }
+  } 
+  else {
+    roboEyes.update(); 
   }
 
   // --- Real-Time Motor Cutoff ---
@@ -296,7 +359,7 @@ void loop() {
         touch_start_time = millis();
         hold_triggered = false;
       } else {
-        if (!hold_triggered && !showing_dashboard) {
+        if (!hold_triggered && !showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
           unsigned long press_duration = millis() - touch_start_time;
           
           Serial.print(F("[TOUCH-DEBUG] Release Event Logged. Total Duration: "));
@@ -307,7 +370,7 @@ void loop() {
             Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion & shuffle."));
             roboEyes.setMood(HAPPY);
             roboEyes.anim_laugh();
-            cute.play(S_SUPER_HAPPY);
+            playSoundAsync(S_SUPER_HAPPY); 
             moveDroid(FORWARD);
             motor_stop_time = millis() + 150;
             motor_running = true;
@@ -315,7 +378,7 @@ void loop() {
           else if (press_duration >= TRIGGER_ANGRY_HOLD_MS && press_duration < TRIGGER_DASHBOARD_MS) {
             Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion & retreat."));
             roboEyes.setMood(ANGRY);
-            cute.play(S_OHOOH); 
+            playSoundAsync(S_OHOOH); 
             moveDroid(BACKWARD);
             motor_stop_time = millis() + 300;
             motor_running = true;
@@ -326,23 +389,35 @@ void loop() {
   }
   lastRawTouchState = rawTouchReading;
 
-  // Real-time Dashboard Threshold Intercept (Triggers instantly at 5 seconds)
-  if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
+  // Real-time Dashboard Threshold Intercept
+  if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard && !showing_pre_sweat) {
     unsigned long current_hold_duration = millis() - touch_start_time;
 
     if (current_hold_duration >= TRIGGER_DASHBOARD_MS && current_hold_duration < TRIGGER_SLEEP_MS) {
-      Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Opening Dashboard panel."));
-      showing_dashboard = true;
-      dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
-      cute.play(S_BUTTON_PUSHED);               
+      Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Route Evaluation..."));
+      playSoundAsync(S_BUTTON_PUSHED); 
+      
+      Serial.print(F("[SWEAT-DEBUG] Current Live Temp: ")); Serial.print(live_temp);
+      Serial.print(F(" C | Sweat Threshold: ")); Serial.print(SWEAT_TEMP_THRESHOLD_C); Serial.println(F(" C"));
+
+      if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
+        Serial.println(F("[EMOTION-DEBUG] High Temp Detected! Running pre-dashboard sweat check..."));
+        showing_pre_sweat = true;
+        sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
+        roboEyes.setMood(TIRED); 
+        roboEyes.setSweat(ON);
+      } else {
+        showing_dashboard = true;
+        dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
+      }
       hold_triggered = true; 
     }
   }
 
-  // NEW: Real-time Shutdown Intercept (Triggers instantly at 8 seconds while holding)
-  if (debouncedTouchState == HIGH && !showing_dashboard) {
+  // FIXED: Real-time Shutdown Intercept (UI state guards completely removed)
+  if (debouncedTouchState == HIGH) {
     if (millis() - touch_start_time >= TRIGGER_SLEEP_MS) {
-      enterSystemDeepSleep(); // Diverts system execution completely to power down
+      enterSystemDeepSleep(); 
     }
   }
 
@@ -354,31 +429,30 @@ void loop() {
   float delta_y = abs(event.acceleration.y - last_y); 
   float delta_z = abs(event.acceleration.z - last_z);
 
+  Serial.print("X: "); Serial.print(delta_x);
+  Serial.print(" Y: "); Serial.print(delta_y);
+  Serial.print(" Z: "); Serial.println(delta_z);
+
   last_x = event.acceleration.x;
   last_y = event.acceleration.y;
   last_z = event.acceleration.z;
 
   if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
-    if (!showing_dashboard) {
+    if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
       roboEyes.setMood(TIRED);
       roboEyes.anim_confused();
     }
-    cute.play(S_SURPRISE);
+    playSoundAsync(S_SURPRISE); 
   }
 
   // --- TIMER 1: Fixed Environmental Sampling & FUEL GAUGE MATH (Every 1000ms) ---
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     
-    // NEW: Precise Lithium Polymer Fuel Gauge Logic
-    // 12-bit ADC converts voltages to an integer range between 0 and 4095
     int rawADC = analogRead(FREE_BATTERY_PIN);
-    
-    // Scale tracking to isolate structural voltage crossing points
     float pinVoltage = (rawADC / 4095.0) * ADC_VREF_VOLTAGE;
-    float calculatedBatteryVoltage = pinVoltage * 2.0; // Multiplied by 2 to compensate for the equal 1:1 hardware resistor divider
+    float calculatedBatteryVoltage = pinVoltage * 2.0; 
 
-    // Map typical LiPo discharge curve values (4.2V fully charged down to 3.5V safe empty cutoff)
     int calculatedPct = map(round(calculatedBatteryVoltage * 100), 3500, 4200, 0, 100);
     live_battery_percentage = constrain(calculatedPct, 0, 100);
 
@@ -389,7 +463,7 @@ void loop() {
     Serial.print("Light Level: "); Serial.println(light_level);
     
     if (light_level < LDR_THRESHOLD) {
-      if (!showing_dashboard) {
+      if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
         roboEyes.close();
         roboEyes.setPosition(S);
       }
@@ -398,7 +472,7 @@ void loop() {
         motor_running = false;
       }
     } else {
-      if (!showing_dashboard) {
+      if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
         roboEyes.open();
       }
     }
@@ -408,13 +482,13 @@ void loop() {
   if (millis() - idle_timer >= next_idle_interval) {
     idle_timer = millis(); 
     
-    if (!showing_dashboard) {
+    if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
       roboEyes.setMood(DEFAULT);
       roboEyes.setPosition(DEFAULT); 
     }
 
     int current_light = analogRead(LDR_PIN);
-    if (current_light >= LDR_THRESHOLD && !showing_dashboard) {
+    if (current_light >= LDR_THRESHOLD && !showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
         DroidMovement chosenMove = options[random(0, 4)];
