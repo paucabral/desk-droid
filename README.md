@@ -42,5 +42,6 @@ Follow the schematics as seen in [fritzing/desk-droid.fzz](fritzing/desk-droid.f
 ### 🌐 Code: Building & Uploading
 1. Clone the repository and open in VScode with PlatformIO extension installed.
 2. Import the PlatformIO libraries listed in [lib/README.md](lib/README.md).
-3. Connect the microcontroller and select the proper port.
-4. **Build** then **Upload** the project.
+3. Create a `secrets.ini` file using the [secrets.ini.example](secrets.ini.example) file as reference and place your [OpenWeather API key](https://openweathermap.org/api).
+4. Connect the microcontroller and select the proper port.
+5. **Build** then **Upload** the project.
