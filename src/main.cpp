@@ -136,14 +136,15 @@ void fetchLocationAndWeather() {
   http.end();
 }
 
-// Optimized Multi-Chapter System Power Shutdown Routine
 void enterSystemDeepSleep() {
-  Serial.println(F("[POWER-MANAGEMENT] Executing multi-stage animated shutdown protocol..."));
+  Serial.println(F("[POWER-MANAGEMENT] Executing multi-stage designed shutdown protocol..."));
   
-  // 1. Safe-stop the drive motors completely
   moveDroid(STOP);
   
-  // CHAPTER 1: Execute full downward closing animation loop
+  display.clearDisplay();
+  display.display();
+  delay(100); 
+
   roboEyes.setMood(DEFAULT);
   roboEyes.close();
   roboEyes.setPosition(S);
@@ -154,27 +155,46 @@ void enterSystemDeepSleep() {
     delay(15); 
   }
   
-  // CHAPTER 2: Lock and hold the fully closed eyes on the screen for a moment
   delay(1000); 
   
-  // CHAPTER 3: Wipe eyes to display the custom text splash card panel
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SH110X_WHITE);
-  display.setCursor(12, 24);
-  display.println(F("ENTERING SLEEP MODE"));
-  display.setCursor(30, 40);
-  display.println(F("POWERING DOWN..."));
-  display.display();
+  playSoundAsync(S_DISCONNECTION);
   
-  cute.play(S_DISCONNECTION);
-  
-  delay(2000); 
+  for (int frame = 0; frame <= 100; frame += 5) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SH110X_WHITE);
+
+    display.setCursor(7, 44);
+    display.println(F("ENTERING SLEEP MODE"));
+
+    display.setCursor(16, 54);
+    display.println(F("POWERING DOWN..."));
+
+    display.drawFastHLine(2, 2, 10, SH110X_WHITE);
+    display.drawFastVLine(2, 2, 10, SH110X_WHITE);
+    display.drawFastHLine(115, 2, 10, SH110X_WHITE);
+    display.drawFastVLine(125, 2, 10, SH110X_WHITE);
+    display.drawFastHLine(2, 61, 10, SH110X_WHITE);
+    display.drawFastVLine(2, 51, 10, SH110X_WHITE);
+    display.drawFastHLine(115, 61, 10, SH110X_WHITE);
+    display.drawFastVLine(125, 51, 10, SH110X_WHITE);
+
+    display.drawCircle(64, 22, 15, SH110X_WHITE);
+    display.drawRect(59, 15, 10, 15, SH110X_WHITE); 
+    display.drawFastHLine(62, 13, 4, SH110X_WHITE);  
+
+    int powerFillHeight = map(100 - frame, 0, 100, 0, 11);
+    if (powerFillHeight > 0) {
+      display.fillRect(61, 28 - powerFillHeight, 6, powerFillHeight, SH110X_WHITE);
+    }
+
+    display.display();
+    delay(100); 
+  }
 
   display.clearDisplay();
   display.display();
 
-  // Register TOUCH_PIN (GPIO 10) as Wakeup Trigger
   esp_sleep_enable_ext1_wakeup(1ULL << TOUCH_PIN, ESP_EXT1_WAKEUP_ANY_HIGH);
   
   Serial.println(F("[POWER-MANAGEMENT] Droid entering deep sleep state now. Goodnight!"));
@@ -337,71 +357,36 @@ void loop() {
     fetchLocationAndWeather(); 
   }
 
-  // --- TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
+  // --- NOISE-BRIDGED ASYNCHRONOUS TOUCH TRACKING ENGINE ---
   int rawTouchReading = digitalRead(TOUCH_PIN);
-  static int lastRawTouchState = LOW;
-  static int debouncedTouchState = LOW;
-  static unsigned long lastDebounceTime = 0;
-  static bool hold_triggered = false;          
+  static bool is_pressing = false;
+  static unsigned long true_touch_start = 0;
+  static unsigned long last_active_high_time = 0;
+  static bool dashboard_triggered_this_press = false;
 
-  if (rawTouchReading != lastRawTouchState) {
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) >= DEBOUNCE_DELAY_MS) {
-    if (rawTouchReading != debouncedTouchState) {
-      debouncedTouchState = rawTouchReading;
-
-      Serial.print(F("[TOUCH-DEBUG] Stable Debounced State Changed To: "));
-      Serial.println(debouncedTouchState == HIGH ? F("HIGH (PRESSED)") : F("LOW (RELEASED)"));
-
-      if (debouncedTouchState == HIGH) {
-        touch_start_time = millis();
-        hold_triggered = false;
-      } else {
-        if (!hold_triggered && !showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
-          unsigned long press_duration = millis() - touch_start_time;
-          
-          Serial.print(F("[TOUCH-DEBUG] Release Event Logged. Total Duration: "));
-          Serial.print(press_duration);
-          Serial.println(F(" ms"));
-
-          if (press_duration >= TRIGGER_HAPPY_HOLD_MS && press_duration < TRIGGER_ANGRY_HOLD_MS) {
-            Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion & shuffle."));
-            roboEyes.setMood(HAPPY);
-            roboEyes.anim_laugh();
-            playSoundAsync(S_SUPER_HAPPY); 
-            moveDroid(FORWARD);
-            motor_stop_time = millis() + 150;
-            motor_running = true;
-          } 
-          else if (press_duration >= TRIGGER_ANGRY_HOLD_MS && press_duration < TRIGGER_DASHBOARD_MS) {
-            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion & retreat."));
-            roboEyes.setMood(ANGRY);
-            playSoundAsync(S_OHOOH); 
-            moveDroid(BACKWARD);
-            motor_stop_time = millis() + 300;
-            motor_running = true;
-          }
-        }
-      }
+  if (rawTouchReading == HIGH) {
+    if (!is_pressing) {
+      is_pressing = true;
+      true_touch_start = millis();
+      dashboard_triggered_this_press = false;
+      Serial.println(F("[TOUCH-DEBUG] Touch Connection Formed."));
     }
+    last_active_high_time = millis(); // Continuously refresh high water mark while finger remains down
   }
-  lastRawTouchState = rawTouchReading;
 
-  // Real-time Dashboard Threshold Intercept
-  if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard && !showing_pre_sweat) {
-    unsigned long current_hold_duration = millis() - touch_start_time;
+  // Handle Release Conditions based on context gates
+  if (is_pressing) {
+    unsigned long current_hold_duration = millis() - true_touch_start;
 
-    if (current_hold_duration >= TRIGGER_DASHBOARD_MS && current_hold_duration < TRIGGER_SLEEP_MS) {
-      Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Route Evaluation..."));
+    // Gate A: Dashboard intercept threshold checker (Fires at 5 seconds)
+    if (!dashboard_triggered_this_press && current_hold_duration >= TRIGGER_DASHBOARD_MS && current_hold_duration < TRIGGER_SLEEP_MS) {
+      dashboard_triggered_this_press = true;
       playSoundAsync(S_BUTTON_PUSHED); 
       
       Serial.print(F("[SWEAT-DEBUG] Current Live Temp: ")); Serial.print(live_temp);
       Serial.print(F(" C | Sweat Threshold: ")); Serial.print(SWEAT_TEMP_THRESHOLD_C); Serial.println(F(" C"));
 
       if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
-        Serial.println(F("[EMOTION-DEBUG] High Temp Detected! Running pre-dashboard sweat check..."));
         showing_pre_sweat = true;
         sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
         roboEyes.setMood(TIRED); 
@@ -410,14 +395,42 @@ void loop() {
         showing_dashboard = true;
         dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       }
-      hold_triggered = true; 
     }
-  }
 
-  // FIXED: Real-time Shutdown Intercept (UI state guards completely removed)
-  if (debouncedTouchState == HIGH) {
-    if (millis() - touch_start_time >= TRIGGER_SLEEP_MS) {
+    // Gate B: Master Deep Sleep threshold intercept checker (Fires at 10 seconds)
+    if (current_hold_duration >= TRIGGER_SLEEP_MS) {
+      is_pressing = false; // Disengage active looping limits instantly
       enterSystemDeepSleep(); 
+    }
+
+    // Gate C: Asynchronous Noise-Immune Release Tracker
+    if (!dashboard_triggered_this_press) {
+      // Before the screen refresh occurs, maintain hyper-responsive click timing
+      if (rawTouchReading == LOW && (millis() - last_active_high_time > DEBOUNCE_DELAY_MS)) {
+        is_pressing = false;
+        unsigned long total_hold = last_active_high_time - true_touch_start;
+        
+        if (total_hold >= TRIGGER_HAPPY_HOLD_MS && total_hold < TRIGGER_ANGRY_HOLD_MS) {
+          if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
+            roboEyes.setMood(HAPPY); roboEyes.anim_laugh(); playSoundAsync(S_SUPER_HAPPY); 
+            moveDroid(FORWARD); motor_stop_time = millis() + 150; motor_running = true;
+          }
+        }
+        else if (total_hold >= TRIGGER_ANGRY_HOLD_MS && total_hold < TRIGGER_DASHBOARD_MS) {
+          if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
+            roboEyes.setMood(ANGRY); playSoundAsync(S_OHOOH); 
+            moveDroid(BACKWARD); motor_stop_time = millis() + 300; motor_running = true;
+          }
+        }
+      }
+    } 
+    else {
+      // ADVANCED Once the screen updates, allow up to 1.5 seconds of total EMI noise dropping.
+      // It will only cancel the sleep hold if the finger is completely away from the pad.
+      if (rawTouchReading == LOW && (millis() - last_active_high_time > 1500)) {
+        Serial.println(F("[TOUCH-DEBUG] Valid Lift Detected. Resetting Hold Engine State."));
+        is_pressing = false;
+      }
     }
   }
 
