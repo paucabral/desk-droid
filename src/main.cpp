@@ -289,15 +289,25 @@ void loop() {
           Serial.println(F(" ms"));
 
           if (press_duration >= TRIGGER_HAPPY_HOLD_MS && press_duration < TRIGGER_ANGRY_HOLD_MS) {
-            Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion."));
+            Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion & shuffle."));
             roboEyes.setMood(HAPPY);
             roboEyes.anim_laugh();
             cute.play(S_SUPER_HAPPY);
+
+            // KINETIC ADDITION: Happy Little Hop Forward
+            moveDroid(FORWARD);
+            motor_stop_time = millis() + 150; // Drive forward for just 150ms
+            motor_running = true;
           } 
           else if (press_duration >= TRIGGER_ANGRY_HOLD_MS && press_duration < TRIGGER_DASHBOARD_MS) {
-            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion."));
+            Serial.println(F("[TOUCH-DEBUG] Context: Medium Hold. Executing ANGRY emotion & defensive jump."));
             roboEyes.setMood(ANGRY);
             cute.play(S_OHOOH); 
+
+            // KINETIC ADDITION: Angry Startle Reflex (Jumps backward rapidly)
+            moveDroid(BACKWARD);
+            motor_stop_time = millis() + 300; // Drive backward for 300ms to "retreat" defensively
+            motor_running = true;
           }
         }
       }
