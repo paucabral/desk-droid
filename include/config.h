@@ -46,3 +46,6 @@
 #define TRIGGER_ANGRY_HOLD_MS    2000  // Anything past 2 seconds makes it angry
 #define TRIGGER_DASHBOARD_MS     5000  // Keeping it held for 5 full seconds opens dashboard
 #define DEBOUNCE_DELAY_MS        20    // Stable micro-debounce boundary
+
+// LIVE API CONFIGURATION
+#define WEATHER_UPDATE_INTERVAL   900000  // Refresh every 15 minutes (in milliseconds)

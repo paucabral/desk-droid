@@ -9,6 +9,8 @@
 #undef debug // Clears the macro collision before WiFiManager loads
 
 #include <WiFiManager.h> // Includes WiFi.h, WebServer.h, DNSServer.h, and Preferences.h internally
+#include <HTTPClient.h>  // Native ESP32 web network client stack
+#include <ArduinoJson.h> // Structured JSON parsing library
 
 // Modular includes from the include/ folder
 #include "config.h"
@@ -28,6 +30,7 @@ unsigned long env_timer;           // Tracks fixed 1-second sensor updates
 unsigned long idle_timer;          // Tracks variable pacing for random movements
 unsigned long next_idle_interval;  // Dynamically changes to randomize rest duration
 unsigned long motor_stop_time = 0; // Precision stopwatch for active movement duration
+unsigned long weather_timer = 0;   // NEW: Non-blocking 15-minute background web polling clock
 
 // Gesture & Page Management Timers
 unsigned long touch_start_time = 0;
@@ -38,8 +41,12 @@ float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    // Controls screen routing states
 
-// NEW: Dynamic mutable location variable (Ready to be overwritten by your future API call)
+// Live API Dynamic Data Registries (Initialized with placeholder defaults)
 String live_location = "UNKNOWN";
+String live_condition = "WAITING...";
+int live_temp = 0;
+int live_humidity = 0;
+int live_rain_chance = 0;
 
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
@@ -49,9 +56,86 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   cute.play(S_MODE1); 
 }
 
+// Dual-Stage Asynchronous Network Fetching Engine
+void fetchLocationAndWeather() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("[API-DEBUG] Cannot update weather. WiFi disconnected."));
+    return;
+  }
+
+  HTTPClient http;
+  JsonDocument doc; // Scalable JSON Document registry buffer allocation
+  float lat = 0.0;
+  float lon = 0.0;
+
+  Serial.println(F("[API-DEBUG] Starting Stage 1: Requesting IP Geolocation..."));
+  
+  // Phase 1: Ping ip-api to geolocate public network access point addresses
+  http.begin("http://ip-api.com/json/");
+  int httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (!error) {
+      live_location = doc["city"].as<String>();
+      lat = doc["lat"].as<float>();
+      lon = doc["lon"].as<float>();
+      
+      Serial.print(F("[API-DEBUG] Geolocation Success! City: ")); Serial.println(live_location);
+      Serial.print(F("[API-DEBUG] Coordinates Latched: ")); Serial.print(lat); Serial.print(F(", ")); Serial.println(lon);
+    } else {
+      Serial.print(F("[API-DEBUG] Geolocation JSON parse error: ")); Serial.println(error.c_str());
+    }
+  } else {
+    Serial.print(F("[API-DEBUG] Geolocation HTTP request failed, error code: ")); Serial.println(httpCode);
+  }
+  http.end(); // Clear connection state cleanly
+
+  // Guard: If Geolocation tracking completely failed, cancel step 2 routing
+  if (lat == 0.0 && lon == 0.0) return;
+
+  Serial.println(F("[API-DEBUG] Starting Stage 2: Requesting Meteorological Telemetry..."));
+  doc.clear(); // Safe clean context dump before refilling Document space
+
+  // Phase 2: Compile custom localized coordinate string to poll OpenWeather Server
+  String weatherUrl = "http://api.openweathermap.org/data/2.5/weather?lat=" + String(lat, 4) + 
+                      "&lon=" + String(lon, 4) + 
+                      "&appid=" + String(OPENWEATHER_API_KEY) + 
+                      "&units=metric";
+
+  http.begin(weatherUrl);
+  httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (!error) {
+      live_condition = doc["weather"][0]["main"].as<String>();
+      live_temp = round(doc["main"]["temp"].as<float>());
+      live_humidity = doc["main"]["humidity"].as<int>();
+      
+      // Note: Free OpenWeather endpoints don't output "chance percentage" natively. 
+      // We parse cloud coverage density as a dynamic substitute matrix calculation model.
+      live_rain_chance = doc["clouds"]["all"].as<int>(); 
+
+      live_condition.toUpperCase(); // Force capitalization to fit uniform screen metrics
+
+      Serial.println(F("[API-DEBUG] Weather updated successfully!"));
+    } else {
+      Serial.print(F("[API-DEBUG] Weather JSON parse error: ")); Serial.println(error.c_str());
+    }
+  } else {
+    Serial.print(F("[API-DEBUG] Weather HTTP failure endpoint response: ")); Serial.println(httpCode);
+  }
+  http.end();
+}
+
 void setup() {
   Serial.begin(115200);
-  delay(2000); // Expanded wait: Gives native USB CDC serial link time to bind to PC
+  delay(2000); 
 
   Serial.println(F("=== DROID OS BOOTING ==="));
 
@@ -111,14 +195,13 @@ void setup() {
     Serial.print(F("WiFi Connected successfully. Assigned IP: "));
     Serial.println(WiFi.localIP());
     
-    // Set placeholder indicating network is available for API lookups
     live_location = "LOCALIZING..."; 
+    fetchLocationAndWeather(); // Fire off initial network fetch right at startup sequence loop boundary
   } else {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
     Serial.println(F("WiFi Portal timed out or failed. Proceeding to Offline Mode safely..."));
-    
-    // Fallback if the robot boots completely without internet access
     live_location = "OFFLINE"; 
+    live_condition = "N/A";
   }
   delay(2500); 
 
@@ -141,6 +224,7 @@ void setup() {
   // Initialize Timers
   env_timer = millis();
   idle_timer = millis();
+  weather_timer = millis(); 
   next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   randomSeed(analogRead(LDR_PIN)); 
 }
@@ -158,8 +242,8 @@ void loop() {
       String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
       int mockBattery = 85; 
 
-      // Render Dashboard panel passing the dynamic runtime string string
-      drawDashboard("PARTLY CLOUDY", 27, 62, 20, ipStr.c_str(), mockBattery, live_location.c_str());
+      // Render Dashboard mapping dynamic web variables
+      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), mockBattery, live_location.c_str());
     }
   }
 
@@ -167,6 +251,12 @@ void loop() {
   if (motor_running && millis() >= motor_stop_time) {
     moveDroid(STOP);
     motor_running = false;
+  }
+
+  // --- NEW: TIMER 3 - Background Web Updating (Every 15 Minutes) ---
+  if (WiFi.status() == WL_CONNECTED && (millis() - weather_timer >= WEATHER_UPDATE_INTERVAL)) {
+    weather_timer = millis(); 
+    fetchLocationAndWeather(); // Refreshes string properties quietly without freezing eyes
   }
 
   // --- TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
