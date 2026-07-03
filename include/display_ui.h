@@ -6,4 +6,4 @@ extern Adafruit_SH1106G display;
 void drawChecklist(const char* accel, const char* touch, const char* light, const char* audio, const char* motors, const char* sysMsg);
 void drawSplashArt();
 void drawWifiScreen(const char* header, const char* status, const char* ipOrInstruction);
-void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent);
+void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent, const char* location);

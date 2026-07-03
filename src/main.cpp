@@ -38,6 +38,9 @@ float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    // Controls screen routing states
 
+// NEW: Dynamic mutable location variable (Ready to be overwritten by your future API call)
+String live_location = "UNKNOWN";
+
 void configModeCallback(WiFiManager *myWiFiManager) {
   Serial.println(F("Entered Configuration Portal Mode!"));
   Serial.print(F("AP IP Address: "));
@@ -107,9 +110,15 @@ void setup() {
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     Serial.print(F("WiFi Connected successfully. Assigned IP: "));
     Serial.println(WiFi.localIP());
+    
+    // Set placeholder indicating network is available for API lookups
+    live_location = "LOCALIZING..."; 
   } else {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
     Serial.println(F("WiFi Portal timed out or failed. Proceeding to Offline Mode safely..."));
+    
+    // Fallback if the robot boots completely without internet access
+    live_location = "OFFLINE"; 
   }
   delay(2500); 
 
@@ -148,7 +157,9 @@ void loop() {
     } else {
       String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
       int mockBattery = 85; 
-      drawDashboard("PARTLY CLOUDY", 27, 62, 20, ipStr.c_str(), mockBattery);
+
+      // Render Dashboard panel passing the dynamic runtime string string
+      drawDashboard("PARTLY CLOUDY", 27, 62, 20, ipStr.c_str(), mockBattery, live_location.c_str());
     }
   }
 
@@ -158,7 +169,7 @@ void loop() {
     motor_running = false;
   }
 
-  // --- REFACTORED: TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
+  // --- TIME-BRACKETED SINGLE INTERACTION SAMPLING ---
   int rawTouchReading = digitalRead(TOUCH_PIN);
   static int lastRawTouchState = LOW;
   static int debouncedTouchState = LOW;
@@ -180,7 +191,6 @@ void loop() {
         touch_start_time = millis();
         hold_triggered = false;
       } else {
-        // Finger just lifted! Let's calculate exactly how long it stayed down
         if (!hold_triggered && !showing_dashboard) {
           unsigned long press_duration = millis() - touch_start_time;
           
@@ -188,7 +198,6 @@ void loop() {
           Serial.print(press_duration);
           Serial.println(F(" ms"));
 
-          // Time Context Bracket Router
           if (press_duration >= TRIGGER_HAPPY_HOLD_MS && press_duration < TRIGGER_ANGRY_HOLD_MS) {
             Serial.println(F("[TOUCH-DEBUG] Context: Short Tap. Executing HAPPY emotion."));
             roboEyes.setMood(HAPPY);
@@ -206,7 +215,7 @@ void loop() {
   }
   lastRawTouchState = rawTouchReading;
 
-  // Real-time Dashboard Threshold Intercept (Triggers instantly at 2 seconds while holding)
+  // Real-time Dashboard Threshold Intercept
   if (debouncedTouchState == HIGH && !hold_triggered && !showing_dashboard) {
     if (millis() - touch_start_time >= TRIGGER_DASHBOARD_MS) {
       Serial.println(F("[TOUCH-DEBUG] Context: Long Hold Target Met! Opening Dashboard panel."));

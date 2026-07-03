@@ -79,7 +79,7 @@ void drawWifiScreen(const char* header, const char* status, const char* ipOrInst
   display.display();
 }
 
-void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent) {
+void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent, const char* location) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
@@ -89,25 +89,27 @@ void drawDashboard(const char* condition, int temp, int humidity, int rainChance
   display.print(F("=== DASHBOARD ==="));
 
   // 2. Graphic Battery Icon Element (Top Right Corner Area)
-  display.drawRect(106, 0, 16, 8, SH110X_WHITE);       // Main cell block shell
-  display.drawFastVLine(122, 2, 4, SH110X_WHITE);      // Battery positive cathode node tip
+  display.drawRect(106, 0, 16, 8, SH110X_WHITE);       
+  display.drawFastVLine(122, 2, 4, SH110X_WHITE);      
   
-  // Constrain percentage and map it to internal fill pixels (Max 12 pixels across)
   int clampedBattery = (batteryPercent > 100) ? 100 : ((batteryPercent < 0) ? 0 : batteryPercent);
   int fillWidth = (clampedBattery * 12) / 100;
   if (fillWidth > 0) {
-    display.fillRect(108, 2, fillWidth, 4, SH110X_WHITE); // Internal energy level bar fill
+    display.fillRect(108, 2, fillWidth, 4, SH110X_WHITE); 
   }
 
   // Divider Line accent rule
   display.drawFastHLine(0, 10, 128, SH110X_WHITE);
 
-  // 3. System Data Content Metrics
-  display.setCursor(0, 14);
-  display.print(F("ENV:    ")); display.println(condition);
+  // 3. System Data Content Metrics (Optimized layout rows)
+  display.setCursor(0, 13);
+  display.print(F("CITY:   ")); display.println(location);   // New Line!
+  display.print(F("COND:   ")); display.println(condition);
   display.print(F("TEMP:   ")); display.print(temp); display.println(F(" C"));
-  display.print(F("HUMID:  ")); display.print(humidity); display.println(F("%"));
-  display.print(F("RAIN%:  ")); display.print(rainChance); display.println(F("%"));
+  
+  // Pack Humid & Rain into a single line to maintain spatial margin limits
+  display.print(F("HUM: ")); display.print(humidity); display.print(F("%"));
+  display.print(F(" | RAIN: ")); display.print(rainChance); display.println(F("%"));
   
   // Footer Border Line
   display.drawFastHLine(0, 49, 128, SH110X_WHITE);
