@@ -45,7 +45,8 @@ float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    
 bool showing_pre_sweat = false;    
-bool showing_post_sweat = false;   
+bool showing_post_sweat = false;
+bool accel_available = false;
 
 // Live API Dynamic Data Registries
 String live_location = "UNKNOWN";
@@ -83,11 +84,17 @@ void setup() {
 
   Wire.begin(ACCEL_SDA, ACCEL_SCL);
   if(!accel.begin()) {
-    drawChecklist("X", " ", " ", " ", " ", "ACCELEROMETER ERROR!");
-    while(1); 
+    // Show the failure message briefly so you know it's missing
+    drawChecklist("X", " ", " ", " ", " ", "ACCEL BYPASSED");
+    Serial.println(F("[BOOT-WARN] ADXL345 not detected! Disabling shake metrics."));
+    accel_available = false; 
+    delay(1500); // Give you 1.5 seconds to read the warning on the OLED screen
+  } else {
+    accel.setRange(ADXL345_RANGE_4_G);
+    drawChecklist("*", " ", " ", " ", " ", "   TESTING...");
+    accel_available = true; // ◄── Sensor is alive and responding!
+    delay(500);
   }
-  accel.setRange(ADXL345_RANGE_4_G);
-  drawChecklist("*", " ", " ", " ", " ", "   TESTING..."); delay(500);
 
   pinMode(TOUCH_PIN, INPUT);
   drawChecklist("*", "*", " ", " ", " ", "   TESTING..."); delay(500);
@@ -234,8 +241,8 @@ void loop() {
     }
   }
 
-  // --- REFACTORED: Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
-  if (millis() - accel_timer >= 25) {
+  // Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
+  if (accel_available && (millis() - accel_timer >= 25)) { // ◄── ADDED: Only runs if flag is true
     accel_timer = millis();
     sensors_event_t event; 
     accel.getEvent(&event);
