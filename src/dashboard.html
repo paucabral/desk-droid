@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskDroid Pilot Terminal</title>
+    <style>
+        :root {
+            --bg: #121214;
+            --card-bg: #1a1a1e;
+            --border: #29292e;
+            --text: #e1e1e6;
+            --text-muted: #7c7c8a;
+            --accent: #4af6c3;
+            --accent-shadow: rgba(74,246,195,0.2);
+            --btn-bg: #29292e;
+            --btn-active-text: #121214;
+            --stop-btn: #e54949;
+            --stop-btn-active: #ff6b6b;
+            --utility-btn: #34495e;
+            --utility-btn-active: #3498db;
+            --badge-ok: #27ae60;
+            --badge-fail: #e74c3c;
+            --toggle-bg: #29292e;
+            --term-bg: #0a0a0c;
+        }
+
+        body.light-theme {
+            --bg: #f4f5f6;
+            --card-bg: #ffffff;
+            --border: #e2e4e8;
+            --text: #1a1a1e;
+            --text-muted: #64748b;
+            --accent: #00bfa5;
+            --accent-shadow: rgba(0,191,165,0.2);
+            --btn-bg: #eaedf2;
+            --btn-active-text: #ffffff;
+            --stop-btn: #d93838;
+            --stop-btn-active: #f87171;
+            --utility-btn: #64748b;
+            --utility-btn-active: #3b82f6;
+            --badge-ok: #2ed573;
+            --badge-fail: #ff4757;
+            --toggle-bg: #eaedf2;
+            --term-bg: #1e293b;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); text-align: center; padding: 20px; margin: 0; transition: background 0.2s, color 0.2s; }
+        h1 { color: var(--accent); margin-bottom: 5px; font-size: 1.8rem; text-shadow: 0 0 10px var(--accent-shadow); }
+        .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px; }
+        
+        .section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: left; }
+        .section-title { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-top: 0; margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em; text-align: center; }
+        
+        .btn { background: var(--btn-bg); border: none; color: var(--text); padding: 12px; font-size: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; font-weight: 500; }
+        .btn:active { background: var(--accent); color: var(--btn-active-text); transform: scale(0.95); box-shadow: 0 0 12px var(--accent-shadow); }
+        
+        .theme-toggle-container { margin-bottom: 25px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .theme-label { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+
+        .switch {
+            position: relative; display: inline-block; width: 50px; height: 26px; flex-shrink: 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--toggle-bg); transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 34px; border: 1px solid var(--border);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: var(--text-muted); transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent); border-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(24px); background-color: var(--btn-active-text); }
+
+        .metrics-wrapper { display: flex; flex-direction: column; gap: 20px; max-width: 720px; margin: 0 auto 20px auto; }
+        .metrics-wrapper .section { flex: 1; margin-bottom: 0; }
+
+        @media (min-width: 640px) { .metrics-wrapper { flex-direction: row; } }
+
+        .telemetry-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.95rem; }
+        .tele-item { background: var(--btn-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
+        .tele-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px; font-weight: bold; }
+        .tele-value { color: var(--text); font-weight: 600; }
+        .highlight { color: var(--accent); }
+        .tele-toggle-container { display: flex; justify-content: space-between; align-items: center; grid-column: span 2; }
+
+        .check-list { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; font-weight: 600; }
+        .check-item { display: flex; justify-content: space-between; align-items: center; background: var(--btn-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); }
+        .check-item-detail { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-top: 2px; font-family: monospace; transition: color 0.1s ease; }
+        
+        .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; color: #ffffff; text-transform: uppercase; font-weight: bold; transition: all 0.1s ease; }
+        .badge-ok { background: var(--badge-ok); }
+        .badge-fail { background: var(--badge-fail); }
+        .badge-highlight { background: var(--accent); color: var(--btn-active-text); box-shadow: 0 0 8px var(--accent-shadow); }
+
+        .control-block { text-align: center; }
+        .flex-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .flex-row .btn { flex: 1; min-width: 90px; }
+        
+        .pill-standby-box { display: flex; justify-content: space-between; align-items: center; background: var(--btn-bg); padding: 12px 20px; border-radius: 8px; border: 1px solid var(--border); max-width: 280px; margin: 0 auto; }
+
+        .terminal-toggle-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        
+        .terminal-box { 
+            display: none; background: var(--term-bg); border: 1px solid var(--border); 
+            color: #00ff66; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; 
+            padding: 12px; height: 160px; overflow-y: auto; text-align: left; 
+            border-radius: 8px; white-space: pre-wrap; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .terminal-box::-webkit-scrollbar { width: 6px; height: 6px; }
+        .terminal-box::-webkit-scrollbar-track { background: transparent; }
+        .terminal-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 20px; transition: background 0.2s ease; }
+        .terminal-box::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        .remote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 240px; margin: 0 auto; }
+        .remote-grid .btn { padding: 18px 10px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+        .btn-stop { background: var(--stop-btn); color: #ffffff; font-weight: bold; font-size: 0.9rem !important; }
+        .btn-stop:active { background: var(--stop-btn-active); color: #ffffff; box-shadow: 0 0 12px rgba(229,73,73,0.3); }
+        .empty-cell { visibility: hidden; }
+
+        /* --- NEW: TERMINAL FOOTER & EASTER EGG LAYOUT CSS STYLING --- */
+        .terminal-footer {
+            margin-top: 40px;
+            padding: 15px 10px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .terminal-footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        .terminal-footer a:hover {
+            color: var(--accent);
+        }
+        .secret-credits {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            font-style: italic;
+            cursor: default;
+            user-select: none;
+            opacity: 0.08; /* Blends contextually into background structures */
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .secret-credits:hover, .secret-credits:active {
+            opacity: 0.75; /* Reveals clearly on hover focus or touchscreen interaction triggers */
+        }
+    </style>
+</head>
+<body>
+    <h1>DESK DROID</h1>
+    <div class="subtitle">Pilot Interface Terminal</div>
+
+    <div class="theme-toggle-container">
+        <span class="theme-label">🌓 Light Mode</span>
+        <label class="switch" aria-label="Toggle Light and Dark UI Theme">
+            <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="metrics-wrapper">
+        <div class="section">
+            <div class="section-title">Live Telemetry Feeds</div>
+            <div class="telemetry-grid">
+                <div class="tele-item" style="grid-column: span 2;"><div class="tele-label">📍 Location</div><div id="val-loc" class="tele-value">Loading...</div></div>
+                <div class="tele-item"><div class="tele-label">🔋 Battery Level</div><div id="val-batt" class="tele-value highlight">--%</div></div>
+                <div class="tele-item"><div class="tele-label">☁️ Condition</div><div id="val-cond" class="tele-value">--</div></div>
+                <div class="tele-item"><div class="tele-label">🌡️ Temperature</div><div id="val-temp" class="tele-value">--°C</div></div>
+                <div class="tele-item"><div class="tele-label">💧 Humidity</div><div id="val-hum" class="tele-value">--%</div></div>
+                <div class="tele-item" style="grid-column: span 2;"><div class="tele-label">🌧️ Precipitation Chance</div><div id="val-rain" class="tele-value">--%</div></div>
+                
+                <div class="tele-item tele-toggle-container">
+                    <div>
+                        <div class="tele-label" style="margin: 0;">🖥️ OLED Dashboard HUD</div>
+                        <div id="txt-hud-status" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Syncing...</div>
+                    </div>
+                    <label class="switch" aria-label="Toggle Physical OLED Dashboard HUD Screen View">
+                        <input type="checkbox" id="hud-checkbox" onchange="toggleHUD()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Systems Check</div>
+            <div class="check-list">
+                <div class="check-item"><div><span style="color:var(--text-muted); font-size:0.75rem; display:block; font-weight:bold; text-transform:uppercase;">🌐 Network Connectivity</span><span id="val-net-ip" style="font-size:0.95rem; color:var(--text);">Syncing IP...</span></div><span id="val-net-status" class="badge badge-fail">OFFLINE</span></div>
+                
+                <div class="check-item"><div><span>🤖 ACCELEROMETER</span><span id="lbl-accel-raw" class="check-item-detail">X: 0.00 | Y: 0.00 | Z: 0.00</span></div><span id="chk-accel" class="badge badge-fail">--</span></div>
+                <div class="check-item"><div><span>👉 TOUCH SENSOR</span><span id="lbl-touch-raw" class="check-item-detail">State: IDLE</span></div><span id="chk-touch" class="badge badge-ok">READY</span></div>
+                <div class="check-item"><div><span>☀️ LIGHT SENSOR (LDR)</span><span id="lbl-light-raw" class="check-item-detail">Raw ADC: 0</span></div><span id="chk-light" class="badge badge-ok">READY</span></div>
+                
+                <div class="check-item"><span>🔊 BUZZER AUDIO CORE</span><span id="chk-audio" class="badge badge-ok">READY</span></div>
+                <div class="check-item"><span>⚙️ L9110S MOTOR DRIVER</span><span id="chk-motors" class="badge badge-ok">READY</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" style="max-width: 686px; margin: 0 auto 20px auto;">
+        <div class="terminal-toggle-container">
+            <div>
+                <span style="font-weight: 600; font-size: 0.95rem; color: var(--text); display: block;">📟 Live System Terminal Log</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">STREAM SYSTEM EVENTS AND EXCEPTIONS WIRELESSLY</span>
+            </div>
+            <label class="switch" aria-label="Toggle Wireless Serial Terminal Feed Display">
+                <input type="checkbox" id="terminal-checkbox" onchange="toggleTerminal()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <pre id="terminal-box" class="terminal-box">--- TERMINAL MATRIX STREAM INITIALIZED. WAITING FOR INCOMING PACKETS... --- </pre>
+    </div>
+
+    <div class="section control-block">
+        <div class="section-title">Emotion Engine Trigger</div>
+        <div class="flex-row">
+            <button class="btn" onclick="sendCmd('/emotion?type=happy')">Happy 😊</button>
+            <button class="btn" onclick="sendCmd('/emotion?type=angry')">Angry 😡</button>
+            <button class="btn" onclick="sendCmd('/emotion?type=confused')">Surprise 😲</button>
+            <button class="btn" onclick="sendCmd('/emotion?type=sweat')">Sweat 💦</button>
+            <button class="btn" onclick="sendCmd('/emotion?type=default')">Reset 🔄</button>
+        </div>
+    </div>
+
+    <div class="section control-block">
+        <div class="section-title">System Standby Control</div>
+        <div class="pill-standby-box">
+            <span id="txt-sleep-status" style="font-weight: 600; font-size: 0.95rem; color: var(--text);">Droid Awake ☀️</span>
+            <label class="switch" aria-label="Toggle Droid Power Saving Sleep Standby Mode">
+                <input type="checkbox" id="sleep-checkbox" onchange="toggleSleep()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="section control-block">
+        <div class="section-title">Manual Drive Core</div>
+        <div class="remote-grid">
+            <div class="empty-cell"></div>
+            <button class="btn" onclick="sendCmd('/drive?dir=forward')">▲</button>
+            <div class="empty-cell"></div>
+            
+            <button class="btn" onclick="sendCmd('/drive?dir=left')">◀</button>
+            <button class="btn btn-stop" onclick="sendCmd('/drive?dir=stop')">STOP</button>
+            <button class="btn" onclick="sendCmd('/drive?dir=right')">▶</button>
+            
+            <div class="empty-cell"></div>
+            <button class="btn" onclick="sendCmd('/drive?dir=backward')">▼</button>
+            <div class="empty-cell"></div>
+        </div>
+    </div>
+
+    <footer class="terminal-footer">
+        <p>💾 Project Repository: <a href="https://github.com/paucabral/desk-droid" target="_blank" rel="noopener">github.com/paucabral/desk-droid</a></p>
+        <div class="secret-credits">made by Pau, for Anne</div>
+    </footer>
+
+    <script>
+        let serverShowingDashboard = false;
+        let terminalInterval = null; 
+
+        const UI = {
+            themeCheckbox: document.getElementById('theme-checkbox'),
+            hudCheckbox: document.getElementById('hud-checkbox'),
+            sleepCheckbox: document.getElementById('sleep-checkbox'),
+            terminalCheckbox: document.getElementById('terminal-checkbox'),
+            terminalBox: document.getElementById('terminal-box'),
+            
+            valLoc: document.getElementById('val-loc'),
+            valBatt: document.getElementById('val-batt'),
+            valCond: document.getElementById('val-cond'),
+            valTemp: document.getElementById('val-temp'),
+            valHum: document.getElementById('val-hum'),
+            valRain: document.getElementById('val-rain'),
+            txtHudStatus: document.getElementById('txt-hud-status'),
+            
+            valNetIp: document.getElementById('val-net-ip'),
+            valNetStatus: document.getElementById('val-net-status'),
+            chkAccel: document.getElementById('chk-accel'),
+            lblAccelRaw: document.getElementById('lbl-accel-raw'),
+            chkTouch: document.getElementById('chk-touch'),
+            lblTouchRaw: document.getElementById('lbl-touch-raw'),
+            lblLightRaw: document.getElementById('lbl-light-raw'),
+            txtSleepStatus: document.getElementById('txt-sleep-status')
+        };
+
+        function sendCmd(endpoint) {
+            fetch(endpoint).catch(err => console.error('Transmission fault:', err));
+        }
+
+        function toggleTheme() {
+            const isLight = UI.themeCheckbox.checked;
+            document.body.classList.toggle('light-theme', isLight);
+        }
+
+        function toggleHUD() {
+            const isChecked = UI.hudCheckbox.checked;
+            sendCmd('/ui?view=' + (isChecked ? 'dashboard' : 'eyes'));
+        }
+
+        function toggleSleep() {
+            const isSleeping = UI.sleepCheckbox.checked;
+            sendCmd('/sleep?state=' + (isSleeping ? 'on' : 'off'));
+        }
+
+        function toggleTerminal() {
+            const isChecked = UI.terminalCheckbox.checked;
+            if (isChecked) {
+                UI.terminalBox.style.display = 'block';
+                fetchTerminalDelta();
+                terminalInterval = setInterval(fetchTerminalDelta, 1000); 
+            } else {
+                UI.terminalBox.style.display = 'none';
+                clearInterval(terminalInterval);
+            }
+        }
+
+        function fetchTerminalDelta() {
+            fetch('/serial_data')
+                .then(response => response.text())
+                .then(text => {
+                    if (text.length > 0) {
+                        UI.terminalBox.innerText += text;
+                        UI.terminalBox.scrollTop = UI.terminalBox.scrollHeight; 
+                    }
+                })
+                .catch(err => console.error('Terminal buffer drop:', err));
+        }
+
+        function fetchFastSensorData() {
+            fetch('/sensor_data')
+                .then(response => response.json())
+                .then(data => {
+                    try {
+                        if (data.touch_active) {
+                            UI.chkTouch.innerText = "ACTIVE";
+                            UI.chkTouch.className = "badge badge-highlight";
+                            UI.lblTouchRaw.innerText = "State: TOUCHED 💥";
+                            UI.lblTouchRaw.style.color = "var(--accent)";
+                        } else {
+                            UI.chkTouch.innerText = "READY";
+                            UI.chkTouch.className = "badge badge-ok";
+                            UI.lblTouchRaw.innerText = "State: IDLE";
+                            UI.lblTouchRaw.style.color = "var(--text-muted)";
+                        }
+
+                        UI.lblLightRaw.innerText = "Raw ADC: " + data.raw_light;
+
+                        if (data.accel_ok) {
+                            UI.chkAccel.innerText = "READY";
+                            UI.chkAccel.className = "badge badge-ok";
+                            UI.lblAccelRaw.innerText = "X: " + data.raw_ax.toFixed(2) + " | Y: " + data.raw_ay.toFixed(2) + " | Z: " + data.raw_az.toFixed(2);
+                        } else {
+                            UI.chkAccel.innerText = "BYPASSED";
+                            UI.chkAccel.className = "badge badge-fail";
+                            UI.lblAccelRaw.innerText = "X: 0.00 | Y: 0.00 | Z: 0.00 (OFFLINE)";
+                        }
+                    } catch(e) {
+                        console.warn("Fast sensor parsing exception handled:", e);
+                    }
+                })
+                .catch(err => console.error('Fast sensor link dropped:', err));
+        }
+
+        function fetchHeavyTelemetry() {
+            fetch('/telemetry')
+                .then(response => response.json())
+                .then(data => {
+                    try {
+                        UI.valLoc.innerText = data.location;
+                        UI.valBatt.innerText = data.battery + "%";
+                        UI.valCond.innerText = data.condition;
+                        UI.valTemp.innerText = data.temp + " °C";
+                        UI.valHum.innerText = data.humidity + "%";
+                        UI.valRain.innerText = data.rain_chance + "%";
+                        
+                        serverShowingDashboard = data.showing_dashboard;
+                        UI.hudCheckbox.checked = serverShowingDashboard;
+                        
+                        if (serverShowingDashboard) {
+                            UI.txtHudStatus.innerText = "ACTIVE ON GLASS";
+                            UI.txtHudStatus.style.color = "var(--accent)";
+                        } else {
+                            UI.txtHudStatus.innerText = "EYES RENDERING";
+                            UI.txtHudStatus.style.color = "var(--text-muted)";
+                        }
+                    } catch(e) { console.warn("Cloud metrics card parse crash skipped:", e); }
+
+                    try {
+                        UI.valNetIp.innerText = "IP: " + data.net_ip;
+                        UI.valNetStatus.innerText = data.net_status;
+                        UI.valNetStatus.className = data.net_status === "ONLINE" ? "badge badge-ok" : "badge badge-fail";
+                    } catch(e) { console.warn("Network components card parse crash skipped:", e); }
+
+                    try {
+                        UI.sleepCheckbox.checked = data.robot_sleeping;
+                        if (data.robot_sleeping) {
+                            UI.txtSleepStatus.innerText = "Droid Sleeping 💤";
+                            UI.txtSleepStatus.style.color = "var(--text-muted)";
+                        } else {
+                            UI.txtSleepStatus.innerText = "Droid Awake ☀️";
+                            UI.txtSleepStatus.style.color = "var(--text)";
+                        }
+                    } catch(e) { console.warn("Standby tracking sync parse crash skipped:", e); }
+                })
+                .catch(err => console.error('Heavy telemetry loop drop:', err));
+        }
+
+        fetchFastSensorData();
+        fetchHeavyTelemetry();
+        
+        setInterval(fetchFastSensorData, 300);   
+        setInterval(fetchHeavyTelemetry, 10000); 
+    </script>
+</body>
+</html>
