@@ -69,6 +69,7 @@ float live_accel_x = 0.0;
 float live_accel_y = 0.0;
 float live_accel_z = 0.0;
 bool live_touch_active = false;
+bool live_base_connected = false;
 
 // --- LINKER INTEGRATION HOOK ---
 // Connects the dual-channel USB/Web serial logger from network_system.cpp
@@ -320,6 +321,29 @@ void loop() {
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     updateBatteryTelemetry();
+
+    // ─── HIGH-SPEED SENSE MULTIPLEXER ───
+    // Save the exact state the pin was in right before testing
+    bool previous_pin_state = digitalRead(MOTOR_IA1); 
+    
+    // Flip pin to an input with a weak internal pull-up
+    pinMode(MOTOR_IA1, INPUT_PULLUP);
+    delayMicroseconds(15); // Wait a fraction of a millisecond for the voltage plane to settle
+    
+    // Read the line. If detached, it floats HIGH. If docked, L9110S pulls it LOW.
+    live_base_connected = (digitalRead(MOTOR_IA1) == LOW);
+    
+    // Immediately restore the pin back to its proper output drive configuration
+    pinMode(MOTOR_IA1, OUTPUT);
+    digitalWrite(MOTOR_IA1, previous_pin_state);
+    
+    // ─── SAFEGUARD FAILSAFE OVERRIDE ───
+    // If the base is physically detached, immediately force the state machine to shut down motors
+    if (!live_base_connected && motor_running) {
+       moveDroid(STOP);
+       motor_running = false;
+       logTerminal(F("[SYSTEM] Mobility module broken circuit! All active motor drives halted safely."));
+    };
 
     if (!robot_sleeping) { 
       int light_level = analogRead(LDR_PIN);

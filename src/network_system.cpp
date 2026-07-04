@@ -24,6 +24,7 @@ extern unsigned long web_mode_timeout, dashboard_timeout;
 extern int live_light_level;
 extern float live_accel_x, live_accel_y, live_accel_z;
 extern bool live_touch_active; 
+extern bool live_base_connected;
 
 extern void forceWebEmotion(String type);
 extern void playSoundAsync(int soundId);
@@ -89,7 +90,8 @@ void initWebServer() {
     doc["humidity"] = live_humidity;
     doc["rain_chance"] = live_rain_chance;
     doc["showing_dashboard"] = showing_dashboard;
-    doc["robot_sleeping"] = robot_sleeping; 
+    doc["robot_sleeping"] = robot_sleeping;
+    doc["base_connected"] = live_base_connected; 
 
     doc["net_status"] = (WiFi.status() == WL_CONNECTED) ? "ONLINE" : "OFFLINE";
     doc["net_ip"] = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "N/A";

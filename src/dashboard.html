@@ -196,7 +196,21 @@
                 <div class="check-item"><div><span>☀️ LIGHT SENSOR (LDR)</span><span id="lbl-light-raw" class="check-item-detail">Raw ADC: 0</span></div><span id="chk-light" class="badge badge-ok">READY</span></div>
                 
                 <div class="check-item"><span>🔊 BUZZER AUDIO CORE</span><span id="chk-audio" class="badge badge-ok">READY</span></div>
-                <div class="check-item"><span>⚙️ L9110S MOTOR DRIVER</span><span id="chk-motors" class="badge badge-ok">READY</span></div>
+                <div class="check-item">
+                    <div>
+                        <span>⚙️ L9110S MOTOR DRIVER</span>
+                        <span id="lbl-base-status" class="check-item-detail">Module Status: Operational</span>
+                    </div>
+                    <span id="chk-motors" class="badge badge-ok">READY</span>
+                </div>
+                
+                <div class="check-item">
+                    <div>
+                        <span>🚜 CHASSIS TRACKS DOCK</span>
+                        <span id="lbl-dock-detail" class="check-item-detail">Link: Standing Cube</span>
+                    </div>
+                    <span id="chk-dock" class="badge badge-fail">DETACHED</span>
+                </div>
             </div>
         </div>
     </div>
@@ -285,7 +299,11 @@
             chkTouch: document.getElementById('chk-touch'),
             lblTouchRaw: document.getElementById('lbl-touch-raw'),
             lblLightRaw: document.getElementById('lbl-light-raw'),
-            txtSleepStatus: document.getElementById('txt-sleep-status')
+            txtSleepStatus: document.getElementById('txt-sleep-status'),
+
+            chkMotors: document.getElementById('chk-motors'),
+            chkDock: document.getElementById('chk-dock'),
+            lblDockDetail: document.getElementById('lbl-dock-detail')
         };
 
         function sendCmd(endpoint) {
@@ -407,6 +425,21 @@
                             UI.txtSleepStatus.style.color = "var(--text)";
                         }
                     } catch(e) { console.warn("Standby tracking sync parse crash skipped:", e); }
+
+                    try {
+                        // --- ADDED: Real-time Modular Dock Status Tracker Parsing ---
+                        if (data.base_connected) {
+                            UI.chkDock.innerText = "CONNECTED";
+                            UI.chkDock.className = "badge badge-ok";
+                            UI.lblDockDetail.innerText = "Link: Mobile Rover Base 🏎️";
+                            UI.lblDockDetail.style.color = "var(--accent)";
+                        } else {
+                            UI.chkDock.innerText = "DETACHED";
+                            UI.chkDock.className = "badge badge-fail";
+                            UI.lblDockDetail.innerText = "Link: Standing Cube Mode";
+                            UI.lblDockDetail.style.color = "var(--text-muted)";
+                        }
+                    } catch(e) { console.warn("Dock status card update deferred:", e); }
                 })
                 .catch(err => console.error('Heavy telemetry loop drop:', err));
         }
