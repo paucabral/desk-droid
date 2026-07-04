@@ -40,12 +40,16 @@ unsigned long touch_start_time = 0;
 unsigned long dashboard_timeout = 0; 
 unsigned long sweat_timeout = 0;     
 
+// NEW: Global Web UI Intercept System Flags
+bool web_control_active = false;
+unsigned long web_mode_timeout = 0;
+
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
 bool motor_running = false;
 bool showing_dashboard = false;    
 bool showing_pre_sweat = false;    
-bool showing_post_sweat = false;
+bool showing_post_sweat = false;   
 bool accel_available = false;
 
 // Live API Dynamic Data Registries
@@ -58,17 +62,18 @@ int live_rain_chance = 0;
 // Dynamic Fuel Gauge Variable
 int live_battery_percentage = 100;
 
-// LINKER BRIDGE WRAPPER: Safely isolates the RoboEyes class call instance away from sub-modules
 void playEyeShutdownAnimation() {
-  roboEyes.setMood(DEFAULT);
-  roboEyes.close();
-  roboEyes.setPosition(S);
-  
+  roboEyes.setMood(DEFAULT); roboEyes.close(); roboEyes.setPosition(S);
   unsigned long anim_start = millis();
-  while (millis() - anim_start < 1000) { 
-    roboEyes.update();
-    delay(15); 
-  }
+  while (millis() - anim_start < 1000) { roboEyes.update(); delay(15); }
+}
+
+// NEW: Emotion matrix interface bridge execution vector for remote HTTP client requests
+void forceWebEmotion(String type) {
+  if (type == "happy")     { roboEyes.setMood(HAPPY); roboEyes.anim_laugh(); playSoundAsync(S_SUPER_HAPPY); }
+  else if (type == "angry") { roboEyes.setMood(ANGRY); playSoundAsync(S_OHOOH); }
+  else if (type == "confused") { roboEyes.setMood(TIRED); roboEyes.anim_confused(); playSoundAsync(S_SURPRISE); }
+  else                     { roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); }
 }
 
 void setup() {
@@ -76,7 +81,6 @@ void setup() {
   delay(2000); 
   Serial.println(F("=== DROID OS BOOTING ==="));
 
-  // 1. Initialize Displays & Sensors
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
   drawChecklist(" ", " ", " ", " ", " ", "INITIALIZING...");
@@ -84,34 +88,26 @@ void setup() {
 
   Wire.begin(ACCEL_SDA, ACCEL_SCL);
   if(!accel.begin()) {
-    // Show the failure message briefly so you know it's missing
     drawChecklist("X", " ", " ", " ", " ", "ACCEL BYPASSED");
-    Serial.println(F("[BOOT-WARN] ADXL345 not detected! Disabling shake metrics."));
-    accel_available = false; 
-    delay(1500); // Give you 1.5 seconds to read the warning on the OLED screen
+    accel_available = false; delay(1500);
   } else {
     accel.setRange(ADXL345_RANGE_4_G);
     drawChecklist("*", " ", " ", " ", " ", "   TESTING...");
-    accel_available = true; // ◄── Sensor is alive and responding!
-    delay(500);
+    accel_available = true; delay(500);
   }
 
   pinMode(TOUCH_PIN, INPUT);
   drawChecklist("*", "*", " ", " ", " ", "   TESTING..."); delay(500);
-
   pinMode(LDR_PIN, INPUT);
   drawChecklist("*", "*", "*", " ", " ", "   TESTING..."); delay(500);
-
   cute.init(BUZZER_PIN);
   drawChecklist("*", "*", "*", "*", " ", "   TESTING..."); delay(500);
 
-  // 2. Initialize Subsystems
   initAudioSystem();
   initMotors();
   drawChecklist("*", "*", "*", "*", "*", "       READY!");
   cute.play(S_CONNECTION); delay(1000); 
 
-  // 3. Captive Portal Network Routines
   drawWifiScreen("NETWORK CHECK", "SEARCHING...", "Checking memory for\nsaved network connections");
   
   WiFiManager wm;
@@ -124,6 +120,9 @@ void setup() {
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     live_location = "LOCALIZING..."; 
     fetchLocationAndWeather(); 
+    
+    // NEW: Fire up local web server routing matrix since WiFi is online
+    initWebServer();
   } else {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
     live_location = "OFFLINE"; live_condition = "N/A";
@@ -137,7 +136,6 @@ void setup() {
   }
   playSoundAsync(S_HAPPY_SHORT);
 
-  // 4. Anchor Run Configurations
   roboEyes.begin(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, 100); 
   roboEyes.setAutoblinker(ON, 3, 2);
   roboEyes.setIdleMode(ON, 2, 2);
@@ -148,13 +146,23 @@ void setup() {
 }
 
 void loop() {
+  // NEW: Process incoming browser client requests asynchronously
+  if (WiFi.status() == WL_CONNECTED) {
+    handleWebClient();
+    
+    // NEW HEARTBEAT EVALUATOR: Release manual lock if user has been inactive for 30 seconds
+    if (web_control_active && (millis() >= web_mode_timeout)) {
+      web_control_active = false;
+      Serial.println(F("[WEB-SERVER] Web timeout expired. Returning to autonomous navigation."));
+    }
+  }
+
   // --- Page Layout Router Engine ---
   if (showing_dashboard) {
     if (millis() >= dashboard_timeout) {
       showing_dashboard = false; 
       if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
-        showing_post_sweat = true;
-        sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
+        showing_post_sweat = true; sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
         roboEyes.setMood(TIRED); roboEyes.setSweat(ON);
       } else {
         roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT);
@@ -179,7 +187,8 @@ void loop() {
   else { roboEyes.update(); }
 
   // --- Real-Time Safety Intercept Flags ---
-  if (motor_running && millis() >= motor_stop_time) {
+  // MODIFIED SAFETY RULE: Web-driven manual moves bypass autonomous cutoff constraints
+  if (!web_control_active && motor_running && millis() >= motor_stop_time) {
     moveDroid(STOP); motor_running = false;
   }
 
@@ -241,19 +250,16 @@ void loop() {
     }
   }
 
-  // Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
-  if (accel_available && (millis() - accel_timer >= 25)) { // ◄── ADDED: Only runs if flag is true
+  // --- Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
+  if (accel_available && (millis() - accel_timer >= 25)) {
     accel_timer = millis();
-    sensors_event_t event; 
-    accel.getEvent(&event);
+    sensors_event_t event; accel.getEvent(&event);
 
     float delta_x = abs(event.acceleration.x - last_x);
     float delta_y = abs(event.acceleration.y - last_y); 
     float delta_z = abs(event.acceleration.z - last_z);
 
-    last_x = event.acceleration.x; 
-    last_y = event.acceleration.y; 
-    last_z = event.acceleration.z;
+    last_x = event.acceleration.x; last_y = event.acceleration.y; last_z = event.acceleration.z;
 
     if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
       if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
@@ -280,7 +286,8 @@ void loop() {
   }
 
   // --- TIMER 2: Randomized Idle Movement ---
-  if (millis() - idle_timer >= next_idle_interval) {
+  // REFACTORED SAFETY PASS: Only perform autonomous random moves if Web Control is entirely inactive!
+  if (!web_control_active && (millis() - idle_timer >= next_idle_interval)) {
     idle_timer = millis(); 
     if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
       roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); 
