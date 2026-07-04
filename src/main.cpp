@@ -40,9 +40,10 @@ unsigned long touch_start_time = 0;
 unsigned long dashboard_timeout = 0; 
 unsigned long sweat_timeout = 0;     
 
-// NEW: Global Web UI Intercept System Flags
+// Global Web UI Intercept System Flags
 bool web_control_active = false;
 unsigned long web_mode_timeout = 0;
+bool robot_sleeping = false;          
 
 // Global States
 float last_x = 0, last_y = 0, last_z = 0;
@@ -68,12 +69,34 @@ void playEyeShutdownAnimation() {
   while (millis() - anim_start < 1000) { roboEyes.update(); delay(15); }
 }
 
-// NEW: Emotion matrix interface bridge execution vector for remote HTTP client requests
+// Emotion matrix interface bridge execution vector for remote HTTP client requests
 void forceWebEmotion(String type) {
-  if (type == "happy")     { roboEyes.setMood(HAPPY); roboEyes.anim_laugh(); playSoundAsync(S_SUPER_HAPPY); }
-  else if (type == "angry") { roboEyes.setMood(ANGRY); playSoundAsync(S_OHOOH); }
-  else if (type == "confused") { roboEyes.setMood(TIRED); roboEyes.anim_confused(); playSoundAsync(S_SURPRISE); }
-  else                     { roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); }
+  if (type == "happy") { 
+    showing_pre_sweat = false; showing_post_sweat = false; roboEyes.setSweat(OFF);
+    roboEyes.setMood(HAPPY); roboEyes.anim_laugh(); playSoundAsync(S_SUPER_HAPPY); 
+  }
+  else if (type == "angry") { 
+    showing_pre_sweat = false; showing_post_sweat = false; roboEyes.setSweat(OFF);
+    roboEyes.setMood(ANGRY); playSoundAsync(S_OHOOH); 
+  }
+  else if (type == "confused") { 
+    showing_pre_sweat = false; showing_post_sweat = false; roboEyes.setSweat(OFF);
+    roboEyes.setMood(TIRED); roboEyes.anim_confused(); playSoundAsync(S_SURPRISE); 
+  }
+  else if (type == "sweat") { 
+    // REFACTORED SAFETY: Route web sweat straight to post-sweat state layout.
+    // This runs the full animation sequence, but bypasses opening the OLED dashboard!
+    showing_pre_sweat = false;
+    showing_post_sweat = true; 
+    sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS; 
+    roboEyes.setMood(TIRED); 
+    roboEyes.setSweat(ON); 
+    playSoundAsync(S_CUDDLY);
+  }
+  else { 
+    showing_pre_sweat = false; showing_post_sweat = false; roboEyes.setSweat(OFF);
+    roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); 
+  }
 }
 
 void setup() {
@@ -120,8 +143,6 @@ void setup() {
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     live_location = "LOCALIZING..."; 
     fetchLocationAndWeather(); 
-    
-    // NEW: Fire up local web server routing matrix since WiFi is online
     initWebServer();
   } else {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
@@ -146,11 +167,8 @@ void setup() {
 }
 
 void loop() {
-  // NEW: Process incoming browser client requests asynchronously
   if (WiFi.status() == WL_CONNECTED) {
     handleWebClient();
-    
-    // NEW HEARTBEAT EVALUATOR: Release manual lock if user has been inactive for 30 seconds
     if (web_control_active && (millis() >= web_mode_timeout)) {
       web_control_active = false;
       Serial.println(F("[WEB-SERVER] Web timeout expired. Returning to autonomous navigation."));
@@ -158,7 +176,11 @@ void loop() {
   }
 
   // --- Page Layout Router Engine ---
-  if (showing_dashboard) {
+  if (robot_sleeping) {
+    roboEyes.close();
+    roboEyes.update();
+  } 
+  else if (showing_dashboard) {
     if (millis() >= dashboard_timeout) {
       showing_dashboard = false; 
       if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
@@ -174,20 +196,19 @@ void loop() {
   } 
   else if (showing_pre_sweat) {
     if (millis() >= sweat_timeout) {
-      showing_pre_sweat = false; roboEyes.setSweat(OFF); 
+      showing_pre_sweat = false; roboEyes.setSweat(OFF); playSoundAsync(S_CUDDLY);
       showing_dashboard = true; dashboard_timeout = millis() + DASHBOARD_DURATION_MS;
     } else { roboEyes.update(); }
   } 
   else if (showing_post_sweat) {
     if (millis() >= sweat_timeout) {
       showing_post_sweat = false; roboEyes.setSweat(OFF);
-      roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT);
+      roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); playSoundAsync(S_CUDDLY);
     } else { roboEyes.update(); }
   } 
   else { roboEyes.update(); }
 
   // --- Real-Time Safety Intercept Flags ---
-  // MODIFIED SAFETY RULE: Web-driven manual moves bypass autonomous cutoff constraints
   if (!web_control_active && motor_running && millis() >= motor_stop_time) {
     moveDroid(STOP); motor_running = false;
   }
@@ -206,6 +227,7 @@ void loop() {
   if (rawTouchReading == HIGH) {
     if (!is_pressing) {
       is_pressing = true; true_touch_start = millis(); dashboard_triggered_this_press = false;
+      if (robot_sleeping) { robot_sleeping = false; roboEyes.open(); playSoundAsync(S_CONNECTION); }
     }
     last_active_high_time = millis(); 
   }
@@ -250,15 +272,13 @@ void loop() {
     }
   }
 
-  // --- Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
-  if (accel_available && (millis() - accel_timer >= 25)) {
+  // --- Throttled Accelerometer Sampling Loop ---
+  if (!robot_sleeping && accel_available && (millis() - accel_timer >= 25)) { 
     accel_timer = millis();
     sensors_event_t event; accel.getEvent(&event);
-
     float delta_x = abs(event.acceleration.x - last_x);
     float delta_y = abs(event.acceleration.y - last_y); 
     float delta_z = abs(event.acceleration.z - last_z);
-
     last_x = event.acceleration.x; last_y = event.acceleration.y; last_z = event.acceleration.z;
 
     if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
@@ -269,25 +289,26 @@ void loop() {
     }
   }
 
-  // --- TIMER 1: Environmental Sampling & Battery Updates (Every 1000ms) ---
+  // --- TIMER 1: Environmental Sampling & Battery Updates ---
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     updateBatteryTelemetry();
 
-    int light_level = analogRead(LDR_PIN);
-    if (light_level < LDR_THRESHOLD) {
-      if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
-        roboEyes.close(); roboEyes.setPosition(S);
+    if (!robot_sleeping) { 
+      int light_level = analogRead(LDR_PIN);
+      if (light_level < LDR_THRESHOLD) {
+        if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
+          roboEyes.close(); roboEyes.setPosition(S);
+        }
+        if (motor_running) { moveDroid(STOP); motor_running = false; }
+      } else {
+        if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) { roboEyes.open(); }
       }
-      if (motor_running) { moveDroid(STOP); motor_running = false; }
-    } else {
-      if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) { roboEyes.open(); }
     }
   }
 
   // --- TIMER 2: Randomized Idle Movement ---
-  // REFACTORED SAFETY PASS: Only perform autonomous random moves if Web Control is entirely inactive!
-  if (!web_control_active && (millis() - idle_timer >= next_idle_interval)) {
+  if (!web_control_active && !robot_sleeping && (millis() - idle_timer >= next_idle_interval)) {
     idle_timer = millis(); 
     if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
       roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); 
