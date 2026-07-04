@@ -10,6 +10,9 @@
 extern Adafruit_SH1106G display;
 extern int live_battery_percentage;
 
+// Cross-linked function layout inside main.cpp
+extern void playEyeShutdownAnimation();
+
 void updateBatteryTelemetry() {
   int rawADC = analogRead(FREE_BATTERY_PIN);
   float pinVoltage = (rawADC / 4095.0) * ADC_VREF_VOLTAGE;
@@ -28,10 +31,18 @@ void enterSystemDeepSleep() {
   
   display.clearDisplay();
   display.display();
-  
   delay(100); 
+
+  // CHAPTER 1: Execute full sequential eye-closing loop via main.cpp wrapper
+  playEyeShutdownAnimation();
+  
+  // CHAPTER 2: Pause and hold the fully closed look momentarily for perfect pacing
+  delay(1000); 
+  
+  // CHAPTER 3: Fire asynchronous audio chime onto Core 0 so it plays during our graphics loop
   playSoundAsync(S_DISCONNECTION);
   
+  // CHAPTER 4: Run the animated tech HUD progress ring canvas (2 Seconds total)
   for (int frame = 0; frame <= 100; frame += 5) {
     display.clearDisplay();
     display.setTextSize(1);

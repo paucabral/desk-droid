@@ -33,6 +33,7 @@ unsigned long idle_timer;
 unsigned long next_idle_interval;  
 unsigned long motor_stop_time = 0; 
 unsigned long weather_timer = 0;   
+unsigned long accel_timer = 0;
 
 // Gesture & Page Management Timers
 unsigned long touch_start_time = 0;
@@ -55,6 +56,19 @@ int live_rain_chance = 0;
 
 // Dynamic Fuel Gauge Variable
 int live_battery_percentage = 100;
+
+// LINKER BRIDGE WRAPPER: Safely isolates the RoboEyes class call instance away from sub-modules
+void playEyeShutdownAnimation() {
+  roboEyes.setMood(DEFAULT);
+  roboEyes.close();
+  roboEyes.setPosition(S);
+  
+  unsigned long anim_start = millis();
+  while (millis() - anim_start < 1000) { 
+    roboEyes.update();
+    delay(15); 
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -121,7 +135,7 @@ void setup() {
   roboEyes.setAutoblinker(ON, 3, 2);
   roboEyes.setIdleMode(ON, 2, 2);
 
-  env_timer = millis(); idle_timer = millis(); weather_timer = millis(); 
+  env_timer = millis(); idle_timer = millis(); weather_timer = millis(); accel_timer = millis();
   next_idle_interval = random(MOTOR_MOVE_INTERVAL_MIN, MOTOR_MOVE_INTERVAL_MAX); 
   randomSeed(analogRead(LDR_PIN)); 
 }
@@ -220,20 +234,26 @@ void loop() {
     }
   }
 
-  // --- Real-time Accelerometer Sampling ---
-  sensors_event_t event; accel.getEvent(&event);
-  float delta_x = abs(event.acceleration.x - last_x);
-  float delta_y = abs(event.acceleration.y - last_y); 
-  float delta_z = abs(event.acceleration.z - last_z);
+  // --- REFACTORED: Throttled Accelerometer Sampling Loop (Runs at 40Hz / 25ms) ---
+  if (millis() - accel_timer >= 25) {
+    accel_timer = millis();
+    sensors_event_t event; 
+    accel.getEvent(&event);
 
-  Serial.print("X: "); Serial.print(delta_x); Serial.print(" Y: "); Serial.print(delta_y); Serial.print(" Z: "); Serial.println(delta_z);
-  last_x = event.acceleration.x; last_y = event.acceleration.y; last_z = event.acceleration.z;
+    float delta_x = abs(event.acceleration.x - last_x);
+    float delta_y = abs(event.acceleration.y - last_y); 
+    float delta_z = abs(event.acceleration.z - last_z);
 
-  if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
-    if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
-      roboEyes.setMood(TIRED); roboEyes.anim_confused();
+    last_x = event.acceleration.x; 
+    last_y = event.acceleration.y; 
+    last_z = event.acceleration.z;
+
+    if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
+      if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
+        roboEyes.setMood(TIRED); roboEyes.anim_confused();
+      }
+      playSoundAsync(S_SURPRISE); 
     }
-    playSoundAsync(S_SURPRISE); 
   }
 
   // --- TIMER 1: Environmental Sampling & Battery Updates (Every 1000ms) ---
