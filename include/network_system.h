@@ -8,3 +8,6 @@ void fetchLocationAndWeather();
 // Web UI Control Subsystems
 void initWebServer();
 void handleWebClient();
+
+// Global thread-safe terminal logger utility
+void logTerminal(String msg);

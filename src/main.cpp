@@ -63,6 +63,17 @@ int live_rain_chance = 0;
 // Dynamic Fuel Gauge Variable
 int live_battery_percentage = 100;
 
+// Raw Sensor Hardware Data Registries ---
+int live_light_level = 0;
+float live_accel_x = 0.0;
+float live_accel_y = 0.0;
+float live_accel_z = 0.0;
+bool live_touch_active = false;
+
+// --- LINKER INTEGRATION HOOK ---
+// Connects the dual-channel USB/Web serial logger from network_system.cpp
+extern void logTerminal(String msg);
+
 void playEyeShutdownAnimation() {
   roboEyes.setMood(DEFAULT); roboEyes.close(); roboEyes.setPosition(S);
   unsigned long anim_start = millis();
@@ -100,9 +111,9 @@ void forceWebEmotion(String type) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  // Divert early boot tracking messages through the unified logging portal
+  logTerminal(F("=== DROID OS BOOTING ==="));
   delay(2000); 
-  Serial.println(F("=== DROID OS BOOTING ==="));
 
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
@@ -171,7 +182,7 @@ void loop() {
     handleWebClient();
     if (web_control_active && (millis() >= web_mode_timeout)) {
       web_control_active = false;
-      Serial.println(F("[WEB-SERVER] Web timeout expired. Returning to autonomous navigation."));
+      logTerminal(F("[WEB-SERVER] Web timeout expired. Returning to autonomous navigation."));
     }
   }
 
@@ -219,6 +230,7 @@ void loop() {
 
   // --- NOISE-BRIDGED ASYNCHRONOUS TOUCH SAMPLING ENGINE ---
   int rawTouchReading = digitalRead(TOUCH_PIN);
+  live_touch_active = (rawTouchReading == HIGH);
   static bool is_pressing = false;
   static unsigned long true_touch_start = 0;
   static unsigned long last_active_high_time = 0;
@@ -227,7 +239,14 @@ void loop() {
   if (rawTouchReading == HIGH) {
     if (!is_pressing) {
       is_pressing = true; true_touch_start = millis(); dashboard_triggered_this_press = false;
-      if (robot_sleeping) { robot_sleeping = false; roboEyes.open(); playSoundAsync(S_CONNECTION); }
+      
+      // LOG MODIFICATION: Catch physical finger interactions wirelessly
+      if (robot_sleeping) { 
+        robot_sleeping = false; 
+        roboEyes.open(); 
+        playSoundAsync(S_CONNECTION); 
+        logTerminal(F("[HARDWARE] Physical chassis touched! Waking up..."));
+      }
     }
     last_active_high_time = millis(); 
   }
@@ -276,16 +295,24 @@ void loop() {
   if (!robot_sleeping && accel_available && (millis() - accel_timer >= 25)) { 
     accel_timer = millis();
     sensors_event_t event; accel.getEvent(&event);
+
+    // Update web diagnostic registries
+    live_accel_x = event.acceleration.x;
+    live_accel_y = event.acceleration.y;
+    live_accel_z = event.acceleration.z;
+
     float delta_x = abs(event.acceleration.x - last_x);
     float delta_y = abs(event.acceleration.y - last_y); 
     float delta_z = abs(event.acceleration.z - last_z);
     last_x = event.acceleration.x; last_y = event.acceleration.y; last_z = event.acceleration.z;
 
+    // LOG MODIFICATION: Intercept high-G threshold physics triggers
     if (delta_x > SHAKE_THRESHOLD || delta_y > SHAKE_THRESHOLD || delta_z > SHAKE_THRESHOLD) {
       if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
         roboEyes.setMood(TIRED); roboEyes.anim_confused();
       }
       playSoundAsync(S_SURPRISE); 
+      logTerminal(F("[ALERT] High G-force threshold breached! Droid is shaking."));
     }
   }
 
@@ -296,6 +323,7 @@ void loop() {
 
     if (!robot_sleeping) { 
       int light_level = analogRead(LDR_PIN);
+      live_light_level = light_level;
       if (light_level < LDR_THRESHOLD) {
         if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
           roboEyes.close(); roboEyes.setPosition(S);
@@ -316,9 +344,15 @@ void loop() {
 
     int current_light = analogRead(LDR_PIN);
     if (current_light >= LDR_THRESHOLD && !showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
+      
+      // LOG MODIFICATION: Track independent locomotion events automatically
       if (random(100) < 40) {
         DroidMovement options[] = {FORWARD, BACKWARD, TURN_LEFT, TURN_RIGHT};
-        moveDroid(options[random(0, 4)]);
+        int choice = random(0, 4);
+        moveDroid(options[choice]);
+        
+        logTerminal("[AUTONOMOUS] Internal AI triggered movement index: " + String(choice));
+        
         motor_stop_time = millis() + random(MOTOR_MOVE_DURATION_MIN, MOTOR_MOVE_DURATION_MAX); 
         motor_running = true;
       }
