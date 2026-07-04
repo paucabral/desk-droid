@@ -25,12 +25,21 @@ extern int live_light_level;
 extern float live_accel_x, live_accel_y, live_accel_z;
 extern bool live_touch_active; 
 extern bool live_base_connected;
+extern String live_time_long;
+extern bool live_use_military_time;
 
+extern int live_hour_offset;
+extern long live_timezone_offset_sec;
+extern void updateTimeStrings();
+
+// FIXED: Added 'extern' to prevent compilation linker collisions
+extern long live_timezone_offset_sec;
+
+extern void updateTimeStrings();
 extern void forceWebEmotion(String type);
 extern void playSoundAsync(int soundId);
 
 // --- COMPILER ASSET LINHER HOOKS ---
-// PlatformIO automatically converts embedded files into global array pointers.
 extern const uint8_t dashboard_html_start[] asm("_binary_src_dashboard_html_start");
 extern const uint8_t dashboard_html_end[]   asm("_binary_src_dashboard_html_end");
 
@@ -54,17 +63,44 @@ void refreshWebHeartbeat() {
 void initWebServer() {
   // Route 1: Serves your raw asset file directly over the local network space
   server.on("/", HTTP_GET, []() {
-    // Calculate exact content size by subtracting the memory address boundaries
     size_t dataLength = (size_t)(dashboard_html_end - dashboard_html_start);
-    
-    server.setContentLength(dataLength);                              // 1. Declare content payload size
-    server.send(200, "text/html", "");                                // 2. Fire the standard 200 HTTP headers
-    server.sendContent((const char*)dashboard_html_start, dataLength); // 3. Stream the raw binary block
+    server.setContentLength(dataLength);                               
+    server.send(200, "text/html", "");                                
+    server.sendContent((const char*)dashboard_html_start, dataLength); 
   });
 
   server.on("/serial_data", HTTP_GET, []() {
     server.send(200, "text/plain", webTerminalLog);
     webTerminalLog = ""; 
+  });
+
+  server.on("/toggle_time", HTTP_GET, []() {
+    refreshWebHeartbeat();
+    live_use_military_time = !live_use_military_time;
+    
+    // Force an immediate recalculation of the time string right now
+    updateTimeStrings(); 
+    
+    logTerminal("[SYSTEM] Formatting update processed. Military mode state: " + String(live_use_military_time ? "ACTIVE" : "DISABLED"));
+    server.send(200, "text/plain", "OK");
+  });
+
+  // MANUAL HOUR OFFSET INTERCEPT ENDPOINT ---
+  server.on("/set_offset", HTTP_GET, []() {
+    refreshWebHeartbeat();
+    if (server.hasArg("hours")) {
+      live_hour_offset = server.arg("hours").toInt();
+      
+      // Calculate seconds from hour input and push to core OS clock engine
+      live_timezone_offset_sec = (long)live_hour_offset * 3600;
+      configTime(live_timezone_offset_sec, 0, NTP_SERVER);
+      
+      // Force an immediate regeneration of the text clocks
+      updateTimeStrings(); 
+      
+      logTerminal("[SYSTEM] Manual time shift adjusted to: UTC " + String(live_hour_offset >= 0 ? "+" : "") + String(live_hour_offset));
+    }
+    server.send(200, "text/plain", "OK");
   });
 
   server.on("/sensor_data", HTTP_GET, []() {
@@ -86,6 +122,9 @@ void initWebServer() {
     doc["location"] = live_location;
     doc["battery"] = live_battery_percentage;
     doc["condition"] = live_condition;
+    doc["local_date_time"] = live_time_long;
+    doc["military_time"] = live_use_military_time;
+    doc["hour_offset"] = live_hour_offset;
     doc["temp"] = live_temp;
     doc["humidity"] = live_humidity;
     doc["rain_chance"] = live_rain_chance;
@@ -167,27 +206,51 @@ void fetchLocationAndWeather() {
     return;
   }
 
-  HTTPClient http; JsonDocument doc; float lat = 0.0, lon = 0.0;
+  HTTPClient http; 
+  JsonDocument doc; 
+  float lat = 0.0, lon = 0.0;
+  
   logTerminal(F("[API-SYSTEM] Initializing IP Geolocation check packet..."));
   http.begin("http://ip-api.com/json/");
   int httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK) {
-    String payload = http.getString(); DeserializationError error = deserializeJson(doc, payload);
-    if (!error) { live_location = doc["city"].as<String>(); lat = doc["lat"].as<float>(); lon = doc["lon"].as<float>(); }
+    String payload = http.getString(); 
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) { 
+      if (doc["status"] == "success") {
+        live_location = doc["city"].as<String>(); 
+        lat = doc["lat"].as<float>(); 
+        lon = doc["lon"].as<float>(); 
+        
+        logTerminal("[API-SUCCESS] Timezone synchronized and calibrated: " + String(live_timezone_offset_sec) + "s");
+      } else {
+        logTerminal("[API-WARN] Geolocation throttled or private network. Preserving default UTC+8 offset.");
+      }
+    }
   }
-  http.end(); if (lat == 0.0 && lon == 0.0) return;
+  http.end(); 
+  
+  if (lat == 0.0 && lon == 0.0) return;
   doc.clear(); 
   
   logTerminal("[API-SYSTEM] Localizing to coordinate space matrix: Lat=" + String(lat, 2) + ", Lon=" + String(lon, 2));
   String weatherUrl = "http://api.openweathermap.org/data/2.5/weather?lat=" + String(lat, 4) + "&lon=" + String(lon, 4) + "&appid=" + String(OPENWEATHER_API_KEY) + "&units=metric";
+  
   http.begin(weatherUrl);
   httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK) {
-    String payload = http.getString(); DeserializationError error = deserializeJson(doc, payload);
-    if (!error) {
-      live_condition = doc["weather"][0]["main"].as<String>(); live_temp = round(doc["main"]["temp"].as<float>());
-      live_humidity = doc["main"]["humidity"].as<int>(); live_rain_chance = doc["clouds"]["all"].as<int>(); live_condition.toUpperCase(); 
-      logTerminal("[API-SUCCESS] Weather telemetry cached: " + live_condition + " | Temp: " + String(live_temp) + "C");
+    String payload = http.getString(); 
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (!error) { 
+      live_temp = (int)doc["main"]["temp"].as<float>();
+      live_humidity = doc["main"]["humidity"].as<int>();
+      live_condition = doc["weather"][0]["main"].as<String>();
+      
+      if (doc.containsKey("clouds")) {
+        live_rain_chance = doc["clouds"]["all"].as<int>();
+      }
+      logTerminal("[API-SUCCESS] OpenWeather metrics synchronized successfully.");
     }
   }
   http.end();

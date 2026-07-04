@@ -78,12 +78,11 @@
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); 
             gap: 20px; 
-            max-width: 880px; /* Expanded from 720px to widen tracking parameters */
+            max-width: 880px; 
             margin: 0 auto 20px auto; 
         }
 
         .telemetry-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 0.95rem; }
-        
         .tele-item { background: var(--btn-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); min-width: 0; word-wrap: break-word; }
         .tele-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px; font-weight: bold; }
         .tele-value { color: var(--text); font-weight: 600; }
@@ -166,6 +165,25 @@
         <div class="section">
             <div class="section-title">Live Telemetry Feeds</div>
             <div class="telemetry-grid">
+                
+                <div class="tele-item" style="grid-column: span 2; border-color: var(--accent); background: linear-gradient(145deg, var(--card-bg), var(--btn-bg));">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="tele-label" style="font-size: 0.8rem; color: var(--accent); letter-spacing: 0.08em; margin: 0;">📅 SYSTEM CHRONOMETER STATUS</div>
+                        <label class="switch" style="transform: scale(0.85);" aria-label="Toggle 24-Hour Military Time Format Layout">
+                            <input type="checkbox" id="time-format-checkbox" onchange="toggleTimeFormat()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div id="val-date-time" style="font-size: 1.35rem; font-weight: 700; margin-top: 8px; font-family: monospace; letter-spacing: 0.02em; color: var(--text); text-align: center;">LOADING CHRONOS...</div>
+                    
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.8rem;">
+                        <span style="color: var(--text-muted); font-weight: 600;">MANUAL UTC BIAS:</span>
+                        <input type="number" id="input-hour-offset" min="-12" max="14" value="8" style="width: 54px; background: var(--bg); border: 1px solid var(--border); color: var(--accent); padding: 4px; border-radius: 6px; font-family: monospace; text-align: center; font-weight: bold; font-size: 0.85rem;">
+                        <button class="btn" onclick="applyHourOffset()" style="padding: 4px 12px; font-size: 0.75rem; border-radius: 6px; min-width: auto; height: auto; background: var(--border);">SET</button>
+                    </div>
+                </div>
+
                 <div class="tele-item" style="grid-column: span 2;"><div class="tele-label">📍 Location</div><div id="val-loc" class="tele-value">Loading...</div></div>
                 <div class="tele-item"><div class="tele-label">🔋 Battery Level</div><div id="val-batt" class="tele-value highlight">--%</div></div>
                 <div class="tele-item"><div class="tele-label">☁️ Condition</div><div id="val-cond" class="tele-value">--</div></div>
@@ -195,7 +213,6 @@
                 <div class="check-item"><div><span>👉 TOUCH SENSOR</span><span id="lbl-touch-raw" class="check-item-detail">State: IDLE</span></div><span id="chk-touch" class="badge badge-ok">READY</span></div>
                 <div class="check-item"><div><span>☀️ LIGHT SENSOR (LDR)</span><span id="lbl-light-raw" class="check-item-detail">Raw ADC: 0</span></div><span id="chk-light" class="badge badge-ok">READY</span></div>
                 
-                <div class="check-item"><span>🔊 BUZZER AUDIO CORE</span><span id="chk-audio" class="badge badge-ok">READY</span></div>
                 <div class="check-item">
                     <div>
                         <span>⚙️ L9110S MOTOR DRIVER</span>
@@ -291,6 +308,11 @@
             valHum: document.getElementById('val-hum'),
             valRain: document.getElementById('val-rain'),
             txtHudStatus: document.getElementById('txt-hud-status'),
+            valDateTime: document.getElementById('val-date-time'),
+            
+            // Track format toggle input elements
+            timeFormatCheckbox: document.getElementById('time-format-checkbox'),
+            inputHourOffset: document.getElementById('input-hour-offset'),
             
             valNetIp: document.getElementById('val-net-ip'),
             valNetStatus: document.getElementById('val-net-status'),
@@ -300,17 +322,40 @@
             lblTouchRaw: document.getElementById('lbl-touch-raw'),
             lblLightRaw: document.getElementById('lbl-light-raw'),
             txtSleepStatus: document.getElementById('txt-sleep-status'),
-
-            chkMotors: document.getElementById('chk-motors'),
             chkDock: document.getElementById('chk-dock'),
             lblDockDetail: document.getElementById('lbl-dock-detail')
         };
 
         function sendCmd(endpoint) {
-            fetch(endpoint).catch(err => console.error('Transmission fault:', err));
+            return fetch(endpoint).catch(err => console.error('Transmission fault:', err));
         }
 
-        // Toggles local dark/light engine styles
+        // ─── INSTANT RESPONSE TOGGLE CONTROLLER ───
+        function toggleTimeFormat() {
+            // Send toggle request to ESP32
+            fetch('/toggle_time')
+                .then(response => {
+                    if (response.ok) {
+                        // Immediately force a heavy telemetry pull request to update 
+                        // the display clock on your screen without any 10-second lag!
+                        fetchHeavyTelemetry();
+                    }
+                })
+                .catch(err => console.error('Format synchronization fault:', err));
+        }
+
+        function applyHourOffset() {
+            const hoursVal = UI.inputHourOffset.value;
+            fetch('/set_offset?hours=' + hoursVal)
+                .then(response => {
+                    if (response.ok) {
+                        // Instantly refresh tracking text across dashboard components
+                        fetchHeavyTelemetry();
+                    }
+                })
+                .catch(err => console.error('Manual offset adjustment dropped:', err));
+        }
+
         function toggleTheme() {
             const isLight = UI.themeCheckbox.checked;
             document.body.classList.toggle('light-theme', isLight);
@@ -396,6 +441,14 @@
                         UI.valTemp.innerText = data.temp + " °C";
                         UI.valHum.innerText = data.humidity + "%";
                         UI.valRain.innerText = data.rain_chance + "%";
+                        UI.valDateTime.innerText = data.local_date_time;
+                        
+                        // Force switch alignment mapping status from response payload
+                        UI.timeFormatCheckbox.checked = data.military_time;
+
+                        if (document.activeElement !== UI.inputHourOffset) {
+                            UI.inputHourOffset.value = data.hour_offset;
+                        }
                         
                         serverShowingDashboard = data.showing_dashboard;
                         UI.hudCheckbox.checked = serverShowingDashboard;
@@ -408,6 +461,20 @@
                             UI.txtHudStatus.style.color = "var(--text-muted)";
                         }
                     } catch(e) { console.warn("Cloud metrics card parse crash skipped:", e); }
+
+                    try {
+                        if (data.base_connected) {
+                            UI.chkDock.innerText = "CONNECTED";
+                            UI.chkDock.className = "badge badge-ok";
+                            UI.lblDockDetail.innerText = "Link: Mobile Rover Base 🏎️";
+                            UI.lblDockDetail.style.color = "var(--accent)";
+                        } else {
+                            UI.chkDock.innerText = "DETACHED";
+                            UI.chkDock.className = "badge badge-fail";
+                            UI.lblDockDetail.innerText = "Link: Standing Cube Mode";
+                            UI.lblDockDetail.style.color = "var(--text-muted)";
+                        }
+                    } catch(e) { console.warn("Dock status card update deferred:", e); }
 
                     try {
                         UI.valNetIp.innerText = "IP: " + data.net_ip;
@@ -425,21 +492,6 @@
                             UI.txtSleepStatus.style.color = "var(--text)";
                         }
                     } catch(e) { console.warn("Standby tracking sync parse crash skipped:", e); }
-
-                    try {
-                        // --- ADDED: Real-time Modular Dock Status Tracker Parsing ---
-                        if (data.base_connected) {
-                            UI.chkDock.innerText = "CONNECTED";
-                            UI.chkDock.className = "badge badge-ok";
-                            UI.lblDockDetail.innerText = "Link: Mobile Rover Base 🏎️";
-                            UI.lblDockDetail.style.color = "var(--accent)";
-                        } else {
-                            UI.chkDock.innerText = "DETACHED";
-                            UI.chkDock.className = "badge badge-fail";
-                            UI.lblDockDetail.innerText = "Link: Standing Cube Mode";
-                            UI.lblDockDetail.style.color = "var(--text-muted)";
-                        }
-                    } catch(e) { console.warn("Dock status card update deferred:", e); }
                 })
                 .catch(err => console.error('Heavy telemetry loop drop:', err));
         }

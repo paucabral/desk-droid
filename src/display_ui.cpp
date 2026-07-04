@@ -79,44 +79,56 @@ void drawWifiScreen(const char* header, const char* status, const char* ipOrInst
   display.display();
 }
 
-void drawDashboard(const char* condition, int temp, int humidity, int rainChance, const char* ipAddress, int batteryPercent, const char* location) {
+void drawDashboard(const char* condition, int temp, int humidity, int rain_chance, const char* ip, int battery, const char* location, const char* localTime) {
   display.clearDisplay();
-  display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
-
-  // 1. Header Text
+  
+  // ─── 1. TOP BAR: TIME, DATE, & BATTERY STATUS ───
+  display.setTextSize(1);
   display.setCursor(0, 0);
-  display.print(F("=== DASHBOARD ==="));
-
-  // 2. Graphic Battery Icon Element (Top Right Corner Area)
-  display.drawRect(106, 0, 16, 8, SH110X_WHITE);       
-  display.drawFastVLine(122, 2, 4, SH110X_WHITE);      
+  display.print(localTime); // Renders "07:37PM 07/04"
   
-  int clampedBattery = (batteryPercent > 100) ? 100 : ((batteryPercent < 0) ? 0 : batteryPercent);
-  int fillWidth = (clampedBattery * 12) / 100;
-  if (fillWidth > 0) {
-    display.fillRect(108, 2, fillWidth, 4, SH110X_WHITE); 
-  }
-
-  // Divider Line accent rule
-  display.drawFastHLine(0, 10, 128, SH110X_WHITE);
-
-  // 3. System Data Content Metrics (Optimized layout rows)
+  String battStr = String(battery) + "%";
+  // Dynamically right-align battery string based on character length
+  int battX = 128 - (battStr.length() * 6) - 12; 
+  display.setCursor(battX, 0);
+  display.print("B:" + battStr);
+  
+  // Clean horizontal divider rule below top header bar
+  display.drawLine(0, 9, 128, 9, SH110X_WHITE);
+  
+  // ─── 2. MIDDLE AREA: THERMAL CORE & ATMOSPHERE GRID ───
+  // Large Font Temperature Readout (Size 2 = 12x16px per char)
+  display.setTextSize(2);
   display.setCursor(0, 13);
-  display.print(F("CITY:   ")); display.println(location);   // New Line!
-  display.print(F("COND:   ")); display.println(condition);
-  display.print(F("TEMP:   ")); display.print(temp); display.println(F(" C"));
+  display.print(String(temp));
   
-  // Pack Humid & Rain into a single line to maintain spatial margin limits
-  display.print(F("HUM: ")); display.print(humidity); display.print(F("%"));
-  display.print(F(" | RAIN: ")); display.print(rainChance); display.println(F("%"));
+  // Custom tiny superscript degree circle workaround positioning
+  display.setTextSize(1);
+  display.print("o"); 
+  display.setTextSize(2);
+  display.print("C");
   
-  // Footer Border Line
-  display.drawFastHLine(0, 49, 128, SH110X_WHITE);
-
-  // 4. Network Metadata Row
-  display.setCursor(0, 54);
-  display.print(F("IP: ")); display.println(ipAddress);
-
+  // Right Column Secondary Environmental Sub-metrics
+  display.setTextSize(1);
+  display.setCursor(76, 13);
+  display.print("H: "); display.print(humidity); display.print("%");
+  display.setCursor(76, 22);
+  display.print("R: "); display.print(rain_chance); display.print("%");
+  
+  // ─── 3. LOWER AREA: WEATHER CONDITION & GEOLOCATION ───
+  display.setCursor(0, 32);
+  display.print("SKY: "); display.print(condition);
+  
+  display.setCursor(0, 41);
+  display.print("LOC: "); display.print(location);
+  
+  // Clean horizontal divider rule above bottom network bar
+  display.drawLine(0, 50, 128, 50, SH110X_WHITE);
+  
+  // ─── 4. BOTTOM BAR: SYSTEM IP ADDRESS RAIL ───
+  display.setCursor(0, 53);
+  display.print("IP : "); display.print(ip);
+  
   display.display();
 }

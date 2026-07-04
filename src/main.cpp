@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
+#include <time.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 #include <Adafruit_Sensor.h>
@@ -56,6 +57,11 @@ bool accel_available = false;
 // Live API Dynamic Data Registries
 String live_location = "UNKNOWN";
 String live_condition = "WAITING...";
+String live_time_short = "--:--";
+String live_time_long = "LOADING...";
+bool live_use_military_time = DEFAULT_MILITARY_TIME;
+int live_hour_offset = 0;
+long live_timezone_offset_sec = DEFAULT_TIMEZONE_OFFSET;
 int live_temp = 0;
 int live_humidity = 0;
 int live_rain_chance = 0;
@@ -96,7 +102,7 @@ void forceWebEmotion(String type) {
     roboEyes.setMood(TIRED); roboEyes.anim_confused(); playSoundAsync(S_SURPRISE); 
   }
   else if (type == "sweat") { 
-    // REFACTORED SAFETY: Route web sweat straight to post-sweat state layout.
+    // Route web sweat straight to post-sweat state layout.
     // This runs the full animation sequence, but bypasses opening the OLED dashboard!
     showing_pre_sweat = false;
     showing_post_sweat = true; 
@@ -108,6 +114,27 @@ void forceWebEmotion(String type) {
   else { 
     showing_pre_sweat = false; showing_post_sweat = false; roboEyes.setSweat(OFF);
     roboEyes.setMood(DEFAULT); roboEyes.setPosition(DEFAULT); 
+  }
+}
+
+void updateTimeStrings() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    char bufShort[32];
+    char bufLong[64];
+    
+    if (live_use_military_time) {
+      strftime(bufShort, sizeof(bufShort), "%H:%M %m/%d", &timeinfo);         // "19:49 07/04"
+      strftime(bufLong, sizeof(bufLong), "%A, %B %d, %Y - %H:%M", &timeinfo);   // "Saturday, July 04, 2026 - 19:49"
+    } else {
+      strftime(bufShort, sizeof(bufShort), "%I:%M%p %m/%d", &timeinfo);       // "07:49PM 07/04"
+      strftime(bufLong, sizeof(bufLong), "%A, %B %d, %Y - %I:%M %p", &timeinfo); // "Saturday, July 04, 2026 - 07:49 PM"
+    }
+    live_time_short = String(bufShort);
+    live_time_long = String(bufLong);
+  } else {
+    live_time_short = "SYNCING";
+    live_time_long = "CONNECTING TO TIME POOL SERVER...";
   }
 }
 
@@ -154,6 +181,8 @@ void setup() {
     String ipMsg = "IP: " + WiFi.localIP().toString();
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     live_location = "LOCALIZING..."; 
+    // Initialize native OS clock to UTC+8 layout instantly before hitting APIs
+    configTime(live_timezone_offset_sec, 0, NTP_SERVER);
     fetchLocationAndWeather(); 
     initWebServer();
   } else {
@@ -203,7 +232,8 @@ void loop() {
       }
     } else {
       String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "OFFLINE";
-      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), live_battery_percentage, live_location.c_str());
+      String locationWithClock = live_location + " (" + live_time_short + ")";
+      drawDashboard(live_condition.c_str(), live_temp, live_humidity, live_rain_chance, ipStr.c_str(), live_battery_percentage, live_location.c_str(), live_time_short.c_str());
     }
   } 
   else if (showing_pre_sweat) {
@@ -321,6 +351,11 @@ void loop() {
   if (millis() - env_timer >= 1000) {
     env_timer = millis(); 
     updateBatteryTelemetry();
+
+    updateBatteryTelemetry();
+
+    // Regenerate active strings via native OS engine check
+    updateTimeStrings();
 
     // ─── HIGH-SPEED SENSE MULTIPLEXER ───
     // Save the exact state the pin was in right before testing

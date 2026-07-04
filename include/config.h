@@ -60,3 +60,8 @@
 // DYNAMIC SWEAT EMOTION CONFIGURATION
 #define SWEAT_TEMP_THRESHOLD_C   30    // Temperature threshold to trigger sweat (Celsius)
 #define SWEAT_ANIM_DURATION_MS   2000  // Duration of the brief transitional sweat animation (in ms)
+
+// ─── LOCAL TIME CORE CONFIGURATION ───
+#define DEFAULT_MILITARY_TIME    false  // Set to true for 24-Hour (19:25), false for 12-Hour (07:25 PM)
+#define DEFAULT_TIMEZONE_OFFSET  28800
+#define NTP_SERVER               "pool.ntp.org"
