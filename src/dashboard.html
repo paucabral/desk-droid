@@ -126,6 +126,99 @@
         .btn-stop:active { background: var(--stop-btn-active); color: #ffffff; box-shadow: 0 0 12px rgba(229,73,73,0.3); }
         .empty-cell { visibility: hidden; }
 
+        /* ─── MODERNIZED NUMBER INPUT SPIN BUTTONS ─── */
+
+        /* Webkit Engines (Chrome, Safari, Edge, Opera) */
+        #input-hour-offset::-webkit-inner-spin-button {
+            cursor: pointer;
+            background: transparent;
+            opacity: 0.4; /* Softens the default harsh gray arrows to match your theme */
+            height: 22px;
+            width: 14px;
+            transition: opacity 0.2s ease, transform 0.1s ease;
+        }
+
+        /* Lights up the arrows with high contrast when hovering over the input box or the arrows themselves */
+        #input-hour-offset:hover::-webkit-inner-spin-button,
+        #input-hour-offset::-webkit-inner-spin-button:hover {
+            opacity: 1;
+        }
+
+        /* Subtle click response animation */
+        #input-hour-offset::-webkit-inner-spin-button:active {
+            transform: scale(0.9);
+        }
+
+        /* ─── ULTRA-THIN MICRO-STEP ADJUSTER CAPSULE ─── */
+        .bias-input-wrapper {
+            display: inline-flex;
+            align-items: center;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            vertical-align: middle;
+            transition: border-color 0.2s ease;
+        }
+
+        /* Lights up the capsule border when interacting with the controls */
+        .bias-input-wrapper:hover, .bias-input-wrapper:focus-within {
+            border-color: rgba(74, 246, 195, 0.4);
+        }
+
+        #input-hour-offset {
+            width: 36px;
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            padding: 4px 2px 4px 6px;
+            font-family: monospace;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            outline: none;
+            -moz-appearance: textfield; /* Hides native arrows on Firefox */
+            appearance: textfield;
+        }
+
+        /* Hides native arrows on Chrome, Safari, Edge, and Opera */
+        #input-hour-offset::-webkit-outer-spin-button,
+        #input-hour-offset::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .spin-buttons-stack {
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            background: var(--card-bg);
+        }
+
+        .spin-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.5rem; /* Makes chevrons micro-sized */
+            padding: 1px 6px;
+            cursor: pointer;
+            line-height: 1;
+            height: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .spin-btn:hover {
+            color: var(--accent);
+            background: var(--btn-bg);
+        }
+
+        .spin-btn:first-child {
+            border-bottom: 1px solid var(--border);
+        }
+
         .terminal-footer {
             margin-top: 40px;
             padding: 15px 10px;
@@ -179,7 +272,15 @@
                     
                     <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.8rem;">
                         <label for="input-hour-offset" style="color: var(--text-muted); font-weight: 600; cursor: pointer;">MANUAL UTC BIAS:</label>
-                        <input type="number" id="input-hour-offset" min="-12" max="14" value="8" style="width: 54px; background: var(--bg); border: 1px solid var(--border); color: var(--accent); padding: 4px; border-radius: 6px; font-family: monospace; text-align: center; font-weight: bold; font-size: 0.85rem;">
+                        
+                        <div class="bias-input-wrapper">
+                            <input type="number" id="input-hour-offset" min="-12" max="14" value="8">
+                            <div class="spin-buttons-stack">
+                                <button class="spin-btn" onclick="stepOffset(1)" aria-label="Increment Hour">▲</button>
+                                <button class="spin-btn" onclick="stepOffset(-1)" aria-label="Decrement Hour">▼</button>
+                            </div>
+                        </div>
+                        
                         <button class="btn" onclick="applyHourOffset()" style="padding: 4px 12px; font-size: 0.75rem; border-radius: 6px; min-width: auto; height: auto; background: var(--border);">SET</button>
                     </div>
                 </div>
@@ -354,6 +455,14 @@
                     }
                 })
                 .catch(err => console.error('Manual offset adjustment dropped:', err));
+        }
+
+        function stepOffset(amount) {
+            const input = UI.inputHourOffset;
+            let val = Number.parseInt(input.value) + amount;
+            if (val >= Number.parseInt(input.min) && val <= Number.parseInt(input.max)) {
+                input.value = val;
+            }
         }
 
         function toggleTheme() {
