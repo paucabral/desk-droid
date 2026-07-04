@@ -247,7 +247,7 @@ void fetchLocationAndWeather() {
       live_humidity = doc["main"]["humidity"].as<int>();
       live_condition = doc["weather"][0]["main"].as<String>();
       
-      if (doc.containsKey("clouds")) {
+      if (doc["clouds"].is<JsonObject>()) {
         live_rain_chance = doc["clouds"]["all"].as<int>();
       }
       logTerminal("[API-SUCCESS] OpenWeather metrics synchronized successfully.");
