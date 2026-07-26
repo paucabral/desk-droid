@@ -17,31 +17,29 @@ void initMotors() {
 void moveDroid(DroidMovement movement) {
   switch (movement) {
     case FORWARD:
-      digitalWrite(MOTOR_IA1, HIGH);
-      digitalWrite(MOTOR_IB1, LOW);
+      digitalWrite(MOTOR_IA1, LOW);
+      digitalWrite(MOTOR_IB1, HIGH);
       digitalWrite(MOTOR_IA2, HIGH);
       digitalWrite(MOTOR_IB2, LOW);
       break;
 
     case BACKWARD:
-      digitalWrite(MOTOR_IA1, LOW);
-      digitalWrite(MOTOR_IB1, HIGH);
+      digitalWrite(MOTOR_IA1, HIGH);
+      digitalWrite(MOTOR_IB1, LOW);
       digitalWrite(MOTOR_IA2, LOW);
       digitalWrite(MOTOR_IB2, HIGH);
       break;
 
     case TURN_LEFT:
-      // Left motor backward, Right motor forward (Pivot turn)
-      digitalWrite(MOTOR_IA1, LOW);
-      digitalWrite(MOTOR_IB1, HIGH);
+      digitalWrite(MOTOR_IA1, HIGH);
+      digitalWrite(MOTOR_IB1, LOW);
       digitalWrite(MOTOR_IA2, HIGH);
       digitalWrite(MOTOR_IB2, LOW);
       break;
 
     case TURN_RIGHT:
-      // Left motor forward, Right motor backward (Pivot turn)
-      digitalWrite(MOTOR_IA1, HIGH);
-      digitalWrite(MOTOR_IB1, LOW);
+      digitalWrite(MOTOR_IA1, LOW);
+      digitalWrite(MOTOR_IB1, HIGH);
       digitalWrite(MOTOR_IA2, LOW);
       digitalWrite(MOTOR_IB2, HIGH);
       break;
