@@ -1,4 +1,8 @@
 # DeskDroid
+![Microcontroller](https://img.shields.io/badge/ESP-32?logo=arduino&logoColor=blue&label=Microcontroller)
+![Platform Extension](https://img.shields.io/badge/VSCode-Extension?label=PlatformIO&labelColor=orange&color=blue)
+![GitHub Release](https://img.shields.io/github/v/release/paucabral/desk-droid?logo=github)
+
 
 > A compact, autonomous ESP32-S3 desktop companion robot featuring expressive OLED eyes, environmental telemetry, capacitive gesture controls, and a local web dashboard interface.
 
