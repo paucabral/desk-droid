@@ -2,6 +2,17 @@
 
 > A compact, autonomous ESP32-S3 desktop companion robot featuring expressive OLED eyes, environmental telemetry, capacitive gesture controls, and a local web dashboard interface.
 
+![stacked](docs/images/00-desk-droid-stacked.jpg)
+
+
+## Preview
+
+This build uses PVC boards and Cork Sheets for the chassis, and pogo pin magnets for split chassis connectivity between the standalone base and the motor chassis.
+| Stacks | Preview |
+| :--- | :--- |
+| Standalone Base | <img src="docs/images/01-desk-droid-standalone_base.jpg" alt="Standalone Base" width="250"> |
+| Motor Chassis | <img src="docs/images/02-desk-droid-motor_chassis.jpg" alt="Motor Chassis" width="250"> |
+
 ## Key Features
 - Expressive Eye Animations: Dynamic emotional states (Happy, Angry, Confused, Sweating, Tired) powered by FluxGarage_RoboEyes on a 1.3" OLED display.
 - Interactive Touch Gestures: Single-point capacitive touch interface supporting multi-tier hold duration triggers (Happy reaction, Angry reaction, Dashboard overlay, and Deep Sleep power management).
@@ -34,7 +45,7 @@
 | **Sensors** | TEMT600 | Ambient Light Sensor |
 | | ADXL345 | 3-Axis Digital Accelerometer |
 | | TTP223 | Capacitive Touch Module |
-| **Actuators** | G12 N20 DC Motors | Dual Gear Motors w/ L9110S Driver |
+| **Actuators** | G12 N20 DC Motors (Right Angled) | Dual Gear Motors w/ L9110S Driver |
 | | Piezo Buzzer | Passive Buzzer for audio cues |
 | **Power** | 3.7V LiPo Battery | Single-cell rechargeable battery |
 
