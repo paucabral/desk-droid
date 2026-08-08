@@ -145,6 +145,8 @@ void setup() {
   // ─── DISABLE BROWNOUT DETECTOR AT BOOT ───
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
+  initMotors();
+
   // Divert early boot tracking messages through the unified logging portal
   logTerminal(F("=== DROID OS BOOTING ==="));
   delay(1000); 
@@ -172,7 +174,6 @@ void setup() {
   drawChecklist("*", "*", "*", "*", " ", "   TESTING..."); delay(500);
 
   initAudioSystem();
-  initMotors();
   drawChecklist("*", "*", "*", "*", "*", "       READY!");
   cute.play(S_CONNECTION); delay(1000); 
 
@@ -197,7 +198,7 @@ void setup() {
     drawWifiScreen("NETWORK CHECK", "OFFLINE MODE", "No connection found.\nBypassing network boot.");
     live_location = "OFFLINE"; live_condition = "N/A";
   }
-  delay(2500); 
+  delay(2500);
 
   drawSplashArt(); delay(3000); 
   for(int i = 0; i < 3; i++) {

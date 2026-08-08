@@ -21,7 +21,7 @@
 // ACCELEROMETER CONFIGURATION
 #define ACCEL_SCL               7
 #define ACCEL_SDA               6
-#define SHAKE_THRESHOLD         8.0
+#define SHAKE_THRESHOLD         15.0
 
 // MOTOR CONFIGURATION (Dual H-Bridge e.g., L9110S / L298N)
 #define MOTOR_IA1               3  // Left Motor Forward Control
