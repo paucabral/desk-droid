@@ -20,6 +20,9 @@
 #include "network_system.h"
 #include "power_system.h"
 
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
 // Instantiate Global Hardware Objects
 Adafruit_SH1106G display = Adafruit_SH1106G(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire1, OLED_RESET);
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
@@ -139,6 +142,9 @@ void updateTimeStrings() {
 }
 
 void setup() {
+  // ─── DISABLE BROWNOUT DETECTOR AT BOOT ───
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   // Divert early boot tracking messages through the unified logging portal
   logTerminal(F("=== DROID OS BOOTING ==="));
   delay(1000); 
@@ -178,6 +184,8 @@ void setup() {
   wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_SEC);
 
   if (wm.autoConnect(WIFI_AP_NAME)) {
+    WiFi.setTxPower(WIFI_POWER_11dBm); // Cuts peak current spike significantly!
+
     String ipMsg = "IP: " + WiFi.localIP().toString();
     drawWifiScreen("NETWORK CHECK", "ONLINE [OK]", ipMsg.c_str());
     live_location = "LOCALIZING..."; 
