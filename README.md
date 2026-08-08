@@ -116,3 +116,13 @@ Access the DeskDroid web control interface by navigating to http://<DROID_IP_ADD
 - /emotion?type=[happy|angry|confused|sweat|default]: Force specific emotional animations.
 - /telemetry: Fetches JSON data for battery, weather, location, time, and system states.
 - /serial_data: Real-time web terminal stream for debugging logs without a USB connection.
+
+## 🤖 AI Usage & Transparency Disclaimer
+This repository was developed with assistance from Large Language Model (LLM) AI tools acting as a collaborative coding partner.
+- Code Refactoring & Optimization: AI was used for low-level I2C multiplexing routines, non-blocking timer loops, and debugging embedded power/brownout issues.
+- Documentation & Web Assets: Project documentation, README.md structural formatting, and initial HTML/CSS dashboard layouts were generated or refined using AI prompts.
+- Hardware Validation: All electronic circuits, PCB component choices, physical pin allocations, and assembly were manually constructed, tested, and verified on physical hardware by the author.
+
+---
+
+*DeskDroid: Made by Pau, or Anne*
