@@ -126,4 +126,4 @@ This repository was developed with assistance from Large Language Model (LLM) AI
 
 ---
 
-*DeskDroid: Made by Pau, or Anne*
+*DeskDroid: Made by Pau, for Anne*
