@@ -141,7 +141,7 @@ void updateTimeStrings() {
 void setup() {
   // Divert early boot tracking messages through the unified logging portal
   logTerminal(F("=== DROID OS BOOTING ==="));
-  delay(2000); 
+  delay(1000); 
 
   Wire1.begin(OLED_SDA, OLED_SCL);
   display.begin(OLED_I2C_ADDRESS, true);
