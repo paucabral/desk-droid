@@ -12,6 +12,7 @@ This build uses PVC boards and Cork Sheets for the chassis, and pogo pin magnets
 | :--- | :--- |
 | Standalone Base | <img src="docs/images/01-desk-droid-standalone_base.jpg" alt="Standalone Base" width="250"> |
 | Motor Chassis | <img src="docs/images/02-desk-droid-motor_chassis.jpg" alt="Motor Chassis" width="250"> |
+| Motor Chassis | <img src="docs/images/03-desk-droid-web_interface.png" alt="Web Interface" width="250"> |
 
 ## Key Features
 - Expressive Eye Animations: Dynamic emotional states (Happy, Angry, Confused, Sweating, Tired) powered by FluxGarage_RoboEyes on a 1.3" OLED display.
