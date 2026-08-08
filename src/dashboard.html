@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeskDroid Pilot Terminal</title>
     <style>
+
+        @font-face {
+            font-family: 'DepartureMono';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2409-1@1.0/DepartureMono-Regular.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         :root {
             --bg: #121214;
             --card-bg: #1a1a1e;
@@ -45,14 +53,14 @@
             --term-bg: #1e293b;
         }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); text-align: center; padding: 20px; margin: 0; transition: background 0.2s, color 0.2s; }
+        body { font-family: "DepartureMono", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); text-align: center; padding: 20px; margin: 0; transition: background 0.2s, color 0.2s; }
         h1 { color: var(--accent); margin-bottom: 5px; font-size: 1.8rem; text-shadow: 0 0 10px var(--accent-shadow); }
         .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px; }
         
         .section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: left; }
         .section-title { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-top: 0; margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em; text-align: center; }
         
-        .btn { background: var(--btn-bg); border: none; color: var(--text); padding: 12px; font-size: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; font-weight: 500; }
+        .btn { background: var(--btn-bg); border: none; color: var(--text); padding: 12px; font-size: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.15s ease;  font-family: "DepartureMono", monospace; font-weight: 500; }
         .btn:active { background: var(--accent); color: var(--btn-active-text); transform: scale(0.95); box-shadow: 0 0 12px var(--accent-shadow); }
         
         .theme-toggle-container { margin-bottom: 25px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px; }
@@ -91,7 +99,7 @@
 
         .check-list { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; font-weight: 600; }
         .check-item { display: flex; justify-content: space-between; align-items: center; background: var(--btn-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); gap: 10px; }
-        .check-item-detail { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-top: 2px; font-family: monospace; transition: color 0.1s ease; }
+        .check-item-detail { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-top: 2px; font-family: "DepartureMono", monospace; transition: color 0.1s ease; }
         
         .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; color: #ffffff; text-transform: uppercase; font-weight: bold; transition: all 0.1s ease; flex-shrink: 0; }
         .badge-ok { background: var(--badge-ok); }
@@ -108,7 +116,7 @@
         
         .terminal-box { 
             display: none; background: var(--term-bg); border: 1px solid var(--border); 
-            color: #00ff66; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; 
+            color: #00ff66; font-family: "DepartureMono", "Courier New", Courier, monospace; font-size: 0.8rem; 
             padding: 12px; height: 160px; overflow-y: auto; text-align: left; 
             border-radius: 8px; white-space: pre-wrap; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
             scrollbar-width: thin;
@@ -172,7 +180,7 @@
             border: none;
             color: var(--accent);
             padding: 4px 2px 4px 6px;
-            font-family: monospace;
+            font-family: "DepartureMono", monospace;
             text-align: center;
             font-weight: bold;
             font-size: 0.85rem;
@@ -268,7 +276,7 @@
                         </label>
                     </div>
                     
-                    <div id="val-date-time" style="font-size: 1.35rem; font-weight: 700; margin-top: 8px; font-family: monospace; letter-spacing: 0.02em; color: var(--text); text-align: center;">LOADING CHRONOS...</div>
+                    <div id="val-date-time" style="font-size: 1.35rem; font-weight: 700; margin-top: 8px; font-family: 'DepartureMono', monospace; letter-spacing: 0.02em; color: var(--text); text-align: center;">LOADING CHRONOS...</div>
                     
                     <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.8rem;">
                         <label for="input-hour-offset" style="color: var(--text-muted); font-weight: 600; cursor: pointer;">MANUAL UTC BIAS:</label>
@@ -415,8 +423,6 @@
             lblTouchRaw: document.getElementById('lbl-touch-raw'),
             lblLightRaw: document.getElementById('lbl-light-raw'),
             txtSleepStatus: document.getElementById('txt-sleep-status'),
-            chkDock: document.getElementById('chk-dock'),
-            lblDockDetail: document.getElementById('lbl-dock-detail')
         };
 
         function sendCmd(endpoint) {
@@ -562,20 +568,6 @@
                             UI.txtHudStatus.style.color = "var(--text-muted)";
                         }
                     } catch(e) { console.warn("Cloud metrics card parse crash skipped:", e); }
-
-                    try {
-                        if (data.base_connected) {
-                            UI.chkDock.innerText = "CONNECTED";
-                            UI.chkDock.className = "badge badge-ok";
-                            UI.lblDockDetail.innerText = "Link: Mobile Rover Base 🏎️";
-                            UI.lblDockDetail.style.color = "var(--accent)";
-                        } else {
-                            UI.chkDock.innerText = "DETACHED";
-                            UI.chkDock.className = "badge badge-fail";
-                            UI.lblDockDetail.innerText = "Link: Standing Cube Mode";
-                            UI.lblDockDetail.style.color = "var(--text-muted)";
-                        }
-                    } catch(e) { console.warn("Dock status card update deferred:", e); }
 
                     try {
                         UI.valNetIp.innerText = "IP: " + data.net_ip;
