@@ -8,7 +8,7 @@
 ## Preview
 
 This build uses PVC boards and Cork Sheets for the chassis, and pogo pin magnets for split chassis connectivity between the standalone base and the motor chassis.
-| Stacks | Preview |
+| Parts | Preview |
 | :--- | :--- |
 | Standalone Base | <img src="docs/images/01-desk-droid-standalone_base.jpg" alt="Standalone Base" width="250"> |
 | Motor Chassis | <img src="docs/images/02-desk-droid-motor_chassis.jpg" alt="Motor Chassis" width="250"> |
