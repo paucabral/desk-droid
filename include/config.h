@@ -42,10 +42,11 @@
 #define DASHBOARD_DURATION_MS    8000
 
 // EVENT TRIGGERTS
-#define TRIGGER_HAPPY_HOLD_MS    50
-#define TRIGGER_ANGRY_HOLD_MS    2000  // Anything past 2 seconds makes it angry
-#define TRIGGER_DASHBOARD_MS     5000  // Keeping it held for 5 full seconds opens dashboard
-#define DEBOUNCE_DELAY_MS        20    // Stable micro-debounce boundary
+#define TRIGGER_HAPPY_HOLD_MS    300   // 0.3s to 0.9s  = Happy
+#define TRIGGER_ANGRY_HOLD_MS    1000  // 1.0s to 1.8s  = Angry
+#define TRIGGER_DASHBOARD_MS     1800  // 1.8s          = Dashboard Opens
+#define TRIGGER_SLEEP_MS         3000  // 3.0s          = Deep Sleep (Only 1.2s after Dashboard!)
+#define DEBOUNCE_DELAY_MS        600   // 600ms dropout tolerance
 
 // LIVE API CONFIGURATION
 #define WEATHER_UPDATE_INTERVAL   900000  // Refresh every 15 minutes (in milliseconds)

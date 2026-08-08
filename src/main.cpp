@@ -277,14 +277,15 @@ void loop() {
 
   if (rawTouchReading == HIGH) {
     if (!is_pressing) {
-      is_pressing = true; true_touch_start = millis(); dashboard_triggered_this_press = false;
+      is_pressing = true; 
+      true_touch_start = millis(); 
+      dashboard_triggered_this_press = false;
       
-      // LOG MODIFICATION: Catch physical finger interactions wirelessly
       if (robot_sleeping) { 
         robot_sleeping = false; 
         roboEyes.open(); 
         playSoundAsync(S_CONNECTION); 
-        logTerminal(F("[HARDWARE] Physical chassis touched! Waking up..."));
+        logTerminal(F("[HARDWARE] Touch detected! Waking up..."));
       }
     }
     last_active_high_time = millis(); 
@@ -293,40 +294,60 @@ void loop() {
   if (is_pressing) {
     unsigned long current_hold_duration = millis() - true_touch_start;
 
+    // Trigger 1: Dashboard View (1.8 Seconds)
     if (!dashboard_triggered_this_press && current_hold_duration >= TRIGGER_DASHBOARD_MS && current_hold_duration < TRIGGER_SLEEP_MS) {
       dashboard_triggered_this_press = true;
-      playSoundAsync(S_BUTTON_PUSHED); 
+      playSoundAsync(S_BUTTON_PUSHED); // Audio hint: Keep holding for Sleep!
+      
       if (live_temp >= SWEAT_TEMP_THRESHOLD_C) {
-        showing_pre_sweat = true; sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
-        roboEyes.setMood(TIRED); roboEyes.setSweat(ON);
+        showing_pre_sweat = true; 
+        sweat_timeout = millis() + SWEAT_ANIM_DURATION_MS;
+        roboEyes.setMood(TIRED); 
+        roboEyes.setSweat(ON);
       } else {
-        showing_dashboard = true; dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
+        showing_dashboard = true; 
+        dashboard_timeout = millis() + DASHBOARD_DURATION_MS; 
       }
     }
 
+    // Trigger 2: Deep Sleep (3.0 Seconds)
     if (current_hold_duration >= TRIGGER_SLEEP_MS) {
-      is_pressing = false; enterSystemDeepSleep(); 
+      is_pressing = false; 
+      playSoundAsync(S_DISCONNECTION);
+      delay(200); // Allow buzzer tone to finish playing before shutdown
+      enterSystemDeepSleep(); 
     }
 
-    if (!dashboard_triggered_this_press) {
-      if (rawTouchReading == LOW && (millis() - last_active_high_time > DEBOUNCE_DELAY_MS)) {
-        is_pressing = false;
+    // Trigger 3: Finger Release Evaluator
+    // Dynamic dropout allowance: If Dashboard already opened, allow a wider 750ms dropout window
+    unsigned long max_allowed_dropout = dashboard_triggered_this_press ? 750 : 500;
+
+    if (rawTouchReading == LOW && (millis() - last_active_high_time > max_allowed_dropout)) {
+      is_pressing = false; // Officially end press state
+      
+      if (!dashboard_triggered_this_press) {
         unsigned long total_hold = last_active_high_time - true_touch_start;
+        
         if (total_hold >= TRIGGER_HAPPY_HOLD_MS && total_hold < TRIGGER_ANGRY_HOLD_MS) {
           if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
-            roboEyes.setMood(HAPPY); roboEyes.anim_laugh(); playSoundAsync(S_SUPER_HAPPY); 
-            moveDroid(FORWARD); motor_stop_time = millis() + 150; motor_running = true;
+            roboEyes.setMood(HAPPY); 
+            roboEyes.anim_laugh(); 
+            playSoundAsync(S_SUPER_HAPPY); 
+            moveDroid(FORWARD); 
+            motor_stop_time = millis() + 150; 
+            motor_running = true;
           }
         }
         else if (total_hold >= TRIGGER_ANGRY_HOLD_MS && total_hold < TRIGGER_DASHBOARD_MS) {
           if (!showing_dashboard && !showing_pre_sweat && !showing_post_sweat) {
-            roboEyes.setMood(ANGRY); playSoundAsync(S_OHOOH); 
-            moveDroid(BACKWARD); motor_stop_time = millis() + 300; motor_running = true;
+            roboEyes.setMood(ANGRY); 
+            playSoundAsync(S_OHOOH); 
+            moveDroid(BACKWARD); 
+            motor_stop_time = millis() + 300; 
+            motor_running = true;
           }
         }
       }
-    } else {
-      if (rawTouchReading == LOW && (millis() - last_active_high_time > 1500)) { is_pressing = false; }
     }
   }
 
